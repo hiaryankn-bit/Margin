@@ -356,6 +356,7 @@ body.calm *{animation-duration:0s!important;transition-duration:0s!important}
 #srch .group{margin-bottom:var(--s5)}
 .newlist{margin:0 0 20px;padding-left:20px;display:grid;gap:8px;font-size:15px;line-height:1.5}
 [hidden]{display:none!important}
+html,body{overscroll-behavior-x:none}
 /* ===== Ask (AI tutor) ===== */
 .ask{display:flex;flex-direction:column;min-height:calc(100dvh - 160px)}
 .ask.inmodal{min-height:0}
@@ -414,7 +415,7 @@ body.calm *{animation-duration:0s!important;transition-duration:0s!important}
 .lseg.done i{background:var(--ink-2)}.lseg.on i{background:var(--course,var(--ink))}
 .lseg:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .lskip{flex:none}
-@media (max-width:620px){.qtop-in .meta{display:none}.lskip{padding:0 8px;font-size:13px}}
+@media (max-width:620px){.lq .qtop-in .meta{display:none}.lskip{padding:0 8px;font-size:13px}}
 .read.lesson{padding-bottom:var(--s6,32px)}
 .read .why{font-size:15px;color:var(--muted);margin:-8px 0 var(--s4);line-height:1.55}
 .read .para{font-size:16.5px;line-height:1.7;margin:0 0 var(--s4);color:var(--ink);max-width:62ch}

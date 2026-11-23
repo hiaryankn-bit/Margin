@@ -241,7 +241,7 @@ X('m137_lhop',{
 
 X('m137_taylor',{
  why:'Taylor polynomials approximate functions with polynomials that match more and more derivatives.',
- idea:['Tₙ,ₐ(x) = Σₖ₌₀ⁿ f⁽ᵏ⁾(a)/k! · (x − a)ᵏ. It matches f and its first n derivatives at a. T₁ is the linear approximation.','Memorize the Maclaurin polynomials (a = 0) of eˣ, sin x, cos x, ln(1 + x) and 1/(1 − x). Substitute into them to get new ones: e^(x²) comes from eˣ with x replaced by x².'],
+ idea:['Tₙ,ₐ(x) = Σₖ₌₀ⁿ f⁽ᵏ⁾(a)/k! · (x − a)ᵏ. It matches f and its first n derivatives at a. T₁ is the linear approximation.','Memorize the Maclaurin polynomials (a = 0) of eˣ, sin x, cos x, ln(1 + x) and 1/(1 − x). Substitute into them to get new ones: e<sup>x²</sup> comes from eˣ with x replaced by x².'],
  keys:[['Tₙ,ₐ','Σ f⁽ᵏ⁾(a)(x − a)ᵏ/k!'],['eˣ','1 + x + x²/2! + x³/3! + ⋯'],['sin x','x − x³/3! + x⁵/5! − ⋯'],['cos x','1 − x²/2! + x⁴/4! − ⋯'],['ln(1 + x)','x − x²/2 + x³/3 − ⋯'],['1/(1 − x)','1 + x + x² + ⋯']],
  ex:[{q:'Find T₄,₀ for f(x) = e^(−x²).',s:['eᵘ ≈ 1 + u + u²/2 with u = −x².','= 1 − x² + x⁴/2.'],a:'T₄(x) = 1 − x² + x⁴/2'}],
  traps:['Forgetting the k! in the denominator.','Expanding about the wrong centre.']});

@@ -1,0 +1,35 @@
+# Tests every change to the app's source, and only publishes a new build if the tests pass.
+name: Test and publish
+on:
+  push:
+    branches: [main]
+    paths: ['source/**', '.github/workflows/build.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency: {group: build, cancel-in-progress: false}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - name: Test every question generator (about 38,000 questions)
+        run: cd source && node test.js src/m135.js src/m137.js src/chem.js src/phys.js src/proofs.js src/variety.js
+      - name: Build the app
+        run: python3 source/build_pwa.py
+      - name: Check the built app parses
+        run: node -e "const h=require('fs').readFileSync('index.html','utf8');const i=h.indexOf('<script>')+8;new Function(h.slice(i,h.indexOf('</script>',i)));console.log('bundle ok')"
+      - name: Publish the build
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: |
+          git config user.name "margin-ci"
+          git config user.email "margin-ci@users.noreply.github.com"
+          git add index.html sw.js manifest.webmanifest
+          if git diff --cached --quiet; then echo "No changes to publish"; exit 0; fi
+          git commit -m "Build from ${GITHUB_SHA::7}"
+          git push
+          # Pushes made by this workflow don't start a Pages build on their own, so request one.
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Pages build request failed; the next push will publish."

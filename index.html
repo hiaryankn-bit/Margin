@@ -3188,7 +3188,7 @@ function errMsg(c,s,j){const N=PROV[c.prov].n;let m='',code='';if(j){const e=Arr
   if(s===401||s===403||/api key not valid|invalid.{0,20}(api )?key|incorrect api key/i.test(m))return`${N} rejected the key (${s}). Check it under API key.`;
   if(s===402||code==='insufficient_quota'||/credit|insufficient_quota|billing|current quota/i.test(m))return`Your ${N} account is out of credit, or billing isn’t set up.`;
   if(s===429)return`${N} rate limit reached. Wait a minute, then try again.`;
-  if(s===404||/model.{0,40}(not found|does not exist|not exist|invalid)/i.test(m))return`${N} doesn’t recognise the model “${c.model}”. Check the model name under API key.`;
+  if(s===404||/model.{0,40}(not found|does not exist|not exist|invalid)/i.test(m))return`${N} couldn’t use the model “${c.model}”.${m?' '+m:' Check the model name under API key.'}`;
   if(s>=500)return`${N} is having trouble right now (${s}). Try again in a minute.`;
   return`The ${N} request failed (${s}).${m?' '+m:''}`}
 async function provFetch(c,system,messages,max,signal){const r=provReq(c,system,messages,max);let res;

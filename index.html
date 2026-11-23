@@ -3121,7 +3121,7 @@ const PROV={
  anthropic:{n:'Anthropic',s:'Anthropic',model:AIMODEL,ph:'sk-ant-…',get:'Get a key at console.anthropic.com and set a monthly spend limit there.'},
  openai:{n:'OpenAI',s:'OpenAI',model:'gpt-6.2-sol',ph:'sk-…',get:'Get a key at platform.openai.com, under API keys. Set a usage limit there.'},
  gemini:{n:'Google Gemini',s:'Gemini',model:'gemini-3.8-flash',ph:'AIza…',get:'Get a key in Google AI Studio (aistudio.google.com), under Get API key.'},
- openrouter:{n:'OpenRouter',s:'OpenRouter',model:'thinkingmachines/inkling:free',ph:'sk-or-…',get:'Get a key at openrouter.ai, under Keys. Any model slug from openrouter.ai/models works.'},
+ openrouter:{n:'OpenRouter',s:'OpenRouter',model:'nvidia/nemotron-3.5-super-vl:free',ph:'sk-or-…',get:'Get a key at openrouter.ai, under Keys. Any model slug from openrouter.ai/models works.'},
  custom:{n:'Custom (OpenAI-compatible)',s:'Custom',model:'',ph:'Your key',get:'Any service with an OpenAI-style /chat/completions endpoint: Groq, DeepSeek, Mistral, a local server and others. Use its base URL and a model name from its docs. The server has to allow requests from web pages (CORS), or the request is blocked.'}};
 function aiCfg(){let c=null;try{c=JSON.parse(localStorage.getItem(AICFG)||'null')}catch(e){}
   if(!c||!c.key){let old='';try{old=localStorage.getItem(AIKEY)||''}catch(e){}

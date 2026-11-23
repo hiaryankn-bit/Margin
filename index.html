@@ -383,6 +383,7 @@ body.calm *{animation-duration:0s!important;transition-duration:0s!important}
 #srch .group{margin-bottom:var(--s5)}
 .newlist{margin:0 0 20px;padding-left:20px;display:grid;gap:8px;font-size:15px;line-height:1.5}
 [hidden]{display:none!important}
+html,body{overscroll-behavior-x:none}
 /* ===== Ask (AI tutor) ===== */
 .ask{display:flex;flex-direction:column;min-height:calc(100dvh - 160px)}
 .ask.inmodal{min-height:0}
@@ -441,7 +442,7 @@ body.calm *{animation-duration:0s!important;transition-duration:0s!important}
 .lseg.done i{background:var(--ink-2)}.lseg.on i{background:var(--course,var(--ink))}
 .lseg:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .lskip{flex:none}
-@media (max-width:620px){.qtop-in .meta{display:none}.lskip{padding:0 8px;font-size:13px}}
+@media (max-width:620px){.lq .qtop-in .meta{display:none}.lskip{padding:0 8px;font-size:13px}}
 .read.lesson{padding-bottom:var(--s6,32px)}
 .read .why{font-size:15px;color:var(--muted);margin:-8px 0 var(--s4);line-height:1.55}
 .read .para{font-size:16.5px;line-height:1.7;margin:0 0 var(--s4);color:var(--ink);max-width:62ch}
@@ -2201,7 +2202,7 @@ const axes=(ox,oy,w,h,xl='x',yl='y')=>arrow(ox,oy,ox+w,oy,'fa')+arrow(ox,oy,ox,o
  FIG.m137_ivt={cap:'A continuous graph from f(a) to f(b) must cross every height α in between, at least once.',svg:svg(axes(40,175,265,165)+path(f,a,b,X,Y,'fl')+ln(40,Y(al),300,Y(al),'fd')+tx(300,Y(al)-6,'y = α','end','fcl')+`<circle cx="${X(a)}" cy="${Y(f(a))}" r="3.5" class="fdot"/><circle cx="${X(b)}" cy="${Y(f(b))}" r="3.5" class="fdot"/>`+tx(X(a),190,'a','middle','fs')+tx(X(b),190,'b','middle','fs'),200,'Intermediate value theorem')}}
 // MATH 137: Taylor
 {const X=x=>160+x*36,Y=y=>100-y*55;const T=n=>x=>{let s=0,t=x;for(let k=1;k<=n;k+=2){s+=t;t*=-x*x/((k+1)*(k+2))}return s};
- FIG.m137_taylor={cap:'Taylor polynomials of sin x about 0. Each extra term hugs the curve over a wider interval.',svg:svg(ln(20,100,300,100,'fa')+ln(160,15,160,185,'fa')+path(Math.sin,-3.9,3.9,X,Y,'fl',200)+path(T(1),-1.6,1.6,X,Y,'fd2')+path(T(3),-2.45,2.45,X,Y,'fc')+path(T(5),-3.9,3.9,X,Y,'fd')+[['sin x','fl'],['T₁','fd2'],['T₃','fc'],['T₅','fd']].map(([l,c],i)=>ln(250,140+i*14,268,140+i*14,c)+tx(274,144+i*14,l,'start',c==='fc'?'fcl':'fs')).join(''),200,'Taylor polynomials of sine')}}
+ FIG.m137_taylor={cap:'Taylor polynomials of sin x about 0. Each extra term hugs the curve over a wider interval.',svg:svg(ln(20,100,300,100,'fa')+ln(160,15,160,185,'fa')+path(Math.sin,-3.9,3.9,X,Y,'fl',200)+path(T(1),-1.6,1.6,X,Y,'fd2')+path(T(3),-2.45,2.45,X,Y,'fc')+path(T(5),-3.9,3.9,X,Y,'fd')+[['sin x','fl'],['T₁','fd2'],['T₃','fc'],['T₅','fd']].map(([l,c],i)=>ln(236,140+i*14,254,140+i*14,c)+tx(260,144+i*14,l,'start',c==='fc'?'fcl':'fs')).join(''),200,'Taylor polynomials of sine')}}
 // MATH 137: bisection
 {const X=x=>40+(x-1)*230,Y=y=>110-y*45,f=x=>x*x-2;
  FIG.m137_bisect={cap:'Each step keeps the half where the sign changes, so the interval around √2 halves every time.',svg:svg(ln(30,110,300,110,'fa')+path(f,1,2,X,Y,'fl')+[[1,2,150],[1,1.5,165],[1.25,1.5,180]].map(([a,b,y],i)=>ln(X(a),y,X(b),y,'fc','stroke-width="4"')+tx(X(b)+6,y+4,`step ${i}`,'start','fs')).join('')+`<circle cx="${X(Math.SQRT2)}" cy="110" r="4" class="fdotc"/>`+tx(X(Math.SQRT2),100,'√2','middle','fcl'),200,'Bisection intervals')}}
@@ -2774,7 +2775,7 @@ X('m137_lhop',{
 
 X('m137_taylor',{
  why:'Taylor polynomials approximate functions with polynomials that match more and more derivatives.',
- idea:['Tₙ,ₐ(x) = Σₖ₌₀ⁿ f⁽ᵏ⁾(a)/k! · (x − a)ᵏ. It matches f and its first n derivatives at a. T₁ is the linear approximation.','Memorize the Maclaurin polynomials (a = 0) of eˣ, sin x, cos x, ln(1 + x) and 1/(1 − x). Substitute into them to get new ones: e^(x²) comes from eˣ with x replaced by x².'],
+ idea:['Tₙ,ₐ(x) = Σₖ₌₀ⁿ f⁽ᵏ⁾(a)/k! · (x − a)ᵏ. It matches f and its first n derivatives at a. T₁ is the linear approximation.','Memorize the Maclaurin polynomials (a = 0) of eˣ, sin x, cos x, ln(1 + x) and 1/(1 − x). Substitute into them to get new ones: e<sup>x²</sup> comes from eˣ with x replaced by x².'],
  keys:[['Tₙ,ₐ','Σ f⁽ᵏ⁾(a)(x − a)ᵏ/k!'],['eˣ','1 + x + x²/2! + x³/3! + ⋯'],['sin x','x − x³/3! + x⁵/5! − ⋯'],['cos x','1 − x²/2! + x⁴/4! − ⋯'],['ln(1 + x)','x − x²/2 + x³/3 − ⋯'],['1/(1 − x)','1 + x + x² + ⋯']],
  ex:[{q:'Find T₄,₀ for f(x) = e^(−x²).',s:['eᵘ ≈ 1 + u + u²/2 with u = −x².','= 1 − x² + x⁴/2.'],a:'T₄(x) = 1 − x² + x⁴/2'}],
  traps:['Forgetting the k! in the denominator.','Expanding about the wrong centre.']});
@@ -3152,7 +3153,7 @@ function viewAsk(){const ctx=TUT.ctx;const k=ctx&&ctx.k&&REG[ctx.k];
    <form class="composer" id="askform"><textarea id="askin" rows="1" placeholder="Ask a question about your courses" aria-label="Your question"></textarea><button class="btn btn-primary" type="submit" id="asksend" aria-label="Send">${ic('chev',18,2.2)}</button></form></div>`}
 function md(t){let h=esc(t);h=h.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>').replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/\[((?:Notes|Lesson):[^\]\n]{1,120})\]/g,'<span class="cite">$1</span>');
   const lines=h.split('\n');let out='',list=null;for(const l of lines){const m=l.match(/^\s*(\d+)[.)]\s+(.*)$/),b=l.match(/^\s*[-•*]\s+(.*)$/);if(m||b){const tag=m?'ol':'ul';if(list!==tag){if(list)out+=`</${list}>`;out+=`<${tag}>`;list=tag}out+=`<li>${(m?m[2]:b[1])}</li>`}else{if(list){out+=`</${list}>`;list=null}if(l.trim())out+=`<p>${l}</p>`}}if(list)out+=`</${list}>`;return out}
-function msgHtml(m){return m.role==='user'?`<div class="msg me">${esc(m.show||m.content)}</div>`:`<div class="msg ai">${m.content?md(m.content):'<span class="typing">Thinking…</span>'}${m.err?`<p class="xerr">${esc(m.err)}</p>`:''}</div>`}
+function msgHtml(m){return m.role==='user'?`<div class="msg me">${esc(m.show||m.content)}</div>`:`<div class="msg ai">${m.content?md(m.content):m.err?'':'<span class="typing">Thinking…</span>'}${m.err?`<p class="xerr">${esc(m.err)}</p>`:''}</div>`}
 function renderMsgs(){const box=$('#msgs');if(!box)return;box.innerHTML=TUT.msgs.map(msgHtml).join('');const last=box.lastElementChild;if(last)last.scrollIntoView({block:'end',behavior:'smooth'})}
 async function showRoute(){const w=$('#aiwarn');if(!w)return;const r=await aiRoute();if(r)return w.innerHTML='';w.innerHTML=`<div class="tip">${ic('hint',17)}<div><div class="lbl">Connect the tutor</div>The phone app needs your own Anthropic API key (Settings, AI tutor). Or open Margin in Claude, where the tutor works without a key.</div></div>`}
 async function askSend(text,show){if(TUT.busy||!text.trim())return;TUT.busy=true;const ctx=TUT.ctx;const k=ctx&&ctx.k;
@@ -3456,7 +3457,7 @@ function renderLesson(){const L=LSN,k=L.k,n=REG[k],C=n.course,x=lxOf(k),pg=L.pag
   else if(pg.id==='traps')body=`<h2 class="lh">Watch out</h2><p class="lsub">Where marks usually go missing on this topic.</p><ul class="traps">${(x.traps||[]).map(t=>`<li><span class="tx">${ic('x',13,2.4)}</span><span>${t}</span></li>`).join('')}</ul>${x.tip?`<div class="tip">${ic('hint',17)}<div><div class="lbl">Tip</div>${x.tip}</div></div>`:''}`;
   else if(pg.id==='check')body=checkHtml();
   const nextLbl=last?(L.chk&&L.chk.done?(L.thenPlay?'Start practice':'Finish lesson'):''):(L.page===L.pages.length-2?'Quick check':'Next');
-  focusView(`<div class="qtop"><div class="qtop-in"><button class="icon-btn" data-act="lclose" aria-label="Close lesson">${ic('x')}</button><div class="lsegs" role="group" aria-label="Lesson progress: ${pg.t}, ${L.page+1} of ${L.pages.length}">${segs}</div><span class="meta">${pg.t}</span>${L.thenPlay&&!last?`<button class="btn btn-ghost btn-sm lskip" data-act="lessondone" data-id="${k}">Skip to practice</button>`:''}</div></div>
+  focusView(`<div class="qtop lq"><div class="qtop-in"><button class="icon-btn" data-act="lclose" aria-label="Close lesson">${ic('x')}</button><div class="lsegs" role="group" aria-label="Lesson progress: ${pg.t}, ${L.page+1} of ${L.pages.length}">${segs}</div><span class="meta">${pg.t}</span>${L.thenPlay&&!last?`<button class="btn btn-ghost btn-sm lskip" data-act="lessondone" data-id="${k}">Skip to practice</button>`:''}</div></div>
    <article class="read lesson" style="--course:var(--c-${C.id})">${body}
    <div class="lnav">${L.page>0?`<button class="btn btn-secondary" data-act="lprev">${ic('back',16)} Back</button>`:'<span></span>'}${nextLbl?`<button class="btn btn-primary btn-lg" data-act="${last?'lessondone':'lnext'}" data-id="${k}" id="lnext">${nextLbl} <span class="kbd" style="background:transparent;color:inherit;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)">${last?'↵':'→'}</span></button>`:''}</div></article>`)}
 let SW=null;document.addEventListener('touchstart',e=>{if(!LSN||e.touches.length!==1||e.target.closest('.opts,.example,textarea,input'))return;SW={x:e.touches[0].clientX,y:e.touches[0].clientY,t:Date.now()}},{passive:true});
@@ -3603,7 +3604,7 @@ function sEnd(){if(!BZ)return;clearInterval(BZ.timer);const C=CREG[BZ.c];const p
 
 // ================= MODALS =================
 let lastFocus=null;
-function modal(html,wide,locked){lastFocus=document.activeElement;const b=$('#modalBox');b.className='box'+(wide?' wide':'');b.innerHTML=fixM(html);const m=$('#modal');m.classList.add('show');m.dataset.locked=locked?'1':'';setTimeout(()=>{const f=b.querySelector('.btn-primary,button,input');if(f)f.focus({preventScroll:true})},40)}
+function modal(html,wide,locked){lastFocus=document.activeElement;const b=$('#modalBox');b.className='box'+(wide?' wide':'');b.innerHTML=fixM(html);b.scrollTop=0;const m=$('#modal');m.scrollTop=0;m.classList.add('show');m.dataset.locked=locked?'1':'';setTimeout(()=>{const f=b.querySelector('.btn-primary,button,input');if(f)f.focus({preventScroll:true})},40)}
 function closeModal(silent){const m=$('#modal');if(!m.classList.contains('show'))return;m.classList.remove('show');if(!silent&&lastFocus&&lastFocus.focus)lastFocus.focus({preventScroll:true});if(!silent&&QUEUE.length)setTimeout(flushQueue,200)}
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal'&&!$('#modal').dataset.locked)closeModal()});
 
@@ -3669,7 +3670,7 @@ function flags(){const fl=S.flags||[];modal(`<div class="box-h"><h2 class="t-tit
   :`<p class="help" style="margin:0 0 16px">Nothing flagged yet. After answering, tap Flag on any question that looks wrong or unclear.</p><button class="btn btn-ghost btn-block" data-act="settings">Back to settings</button>`}`)}
 let SQ='';
 function searchHits(q){q=q.trim().toLowerCase();if(q.length<2)return[];const out=[];for(const c of COURSES)for(const w of c.worlds)for(const n of w.nodes){const x=LX[n.key]||{};const hay=[n.name,w.title,c.name,...(x.keys||[]).map(k=>k[0]+' '+k[1])].join(' ').toLowerCase();const inName=(n.name+' '+w.title).toLowerCase().includes(q);if(inName||hay.includes(q))out.push({n,w,c,score:inName?0:1})}return out.sort((a,b)=>a.score-b.score).slice(0,20)}
-function renderSearch(){const box=$('#srch');if(!box)return;const hits=searchHits(SQ);box.innerHTML=SQ.trim().length<2?'':hits.length?`<div class="group">${hits.map(({n,w,c})=>`<button class="row" data-act="node" data-id="${n.key}">${markEl(n.key)}<span class="main-t"><span class="t">${n.name}</span><span class="s">${c.name}, ${esc(w.title)}</span></span><span class="end">${ic('chev',16)}</span></button>`).join('')}</div>`:`<p class="help" style="padding:8px 2px">No topics match “${esc(SQ.trim())}”. Try a term like gcd, limit or VSEPR.</p>`;document.querySelector('.chapters')&&(document.querySelector('.chapters').hidden=SQ.trim().length>=2)}
+function renderSearch(){const box=$('#srch');if(!box)return;const hits=searchHits(SQ);box.innerHTML=SQ.trim().length<2?'':hits.length?`<div class="group">${hits.map(({n,w,c})=>`<button class="row" data-act="node" data-id="${n.key}" style="--course:var(--c-${c.id})">${markEl(n.key)}<span class="main-t"><span class="t">${n.name}</span><span class="s">${c.name}, ${esc(w.title)}</span></span><span class="end">${ic('chev',16)}</span></button>`).join('')}</div>`:`<p class="help" style="padding:8px 2px">No topics match “${esc(SQ.trim())}”. Try a term like gcd, limit or VSEPR.</p>`;document.querySelector('.chapters')&&(document.querySelector('.chapters').hidden=SQ.trim().length>=2)}
 document.addEventListener('input',e=>{if(e.target.id==='tsearch'){SQ=e.target.value;renderSearch()}if(e.target.closest&&e.target.closest('.exform')){const x=$('#exerr');if(x)x.textContent=''}});
 const APP_VER='2026.11.23';
 const WHATS_NEW=['Ask: an AI tutor that answers from your own notes first. Import notes in Ask, Your notes. Tap Explain after any answer','Proof Lab in MATH 135, plus proof questions mixed into practice','Upcoming tests: add quiz and exam dates in Settings to get a countdown and focused prep','Diagrams in 14 lessons, and more question types across 11 topics','New CHEM topic: Bond Strength, plus questions on the uncertainty principle, lattice energy and real gases','Search in Courses, a Flag button on questions, and a daily calendar reminder','Bigger touch targets and clearer text on phones'];
@@ -3694,7 +3695,7 @@ function settings(confirmReset){const goals=[30,60,100,150];
   const nm=$('#nm');if(nm)nm.addEventListener('change',()=>{const v=nm.value.trim().slice(0,24);if(v){S.name=v;save()}})}
 function welcome(){modal(`<div style="display:flex;justify-content:center;margin:4px 0 12px">${emblem(120,null,{draw:true})}</div><h2 class="t-title" style="text-align:center">A calmer way to practise</h2>
   <p style="text-align:center;color:var(--ink-2);line-height:1.6;margin:10px 0 0">${(S.xp||Object.keys(S.stars||{}).length)?'Your four courses, your history and your collection are all still here.':'Your four courses are ready. Already studying in the Claude version? Settings, Move progress brings it here.'} The emblem above is yours: it\'s drawn in the ink you choose and grows more intricate as you level up.</p>
-  <div class="group" style="margin-top:20px">${[['today','Today','Your daily goal, what to study next and what\'s due'],['stats','Statistics','Activity, accuracy and mastery over time'],['focus','Focus mode','Press F in a round to hide everything but the question']].map(([i,t,d])=>`<div class="row"><span class="mark">${ic(i,18)}</span><span class="main-t"><span class="t">${t}</span><span class="s">${d}</span></span></div>`).join('')}</div>
+  <div class="group" style="margin-top:20px">${[['today','Today','Your daily goal, what to study next and what\'s due'],['stats','Statistics','Activity, accuracy and mastery over time'],['focus','Focus mode',matchMedia('(pointer:coarse)').matches?'Tap the focus button in a round to hide everything but the question':'Press F in a round to hide everything but the question']].map(([i,t,d])=>`<div class="row"><span class="mark">${ic(i,18)}</span><span class="main-t"><span class="t">${t}</span><span class="s">${d}</span></span></div>`).join('')}</div>
   <div class="stack"><button class="btn btn-primary btn-lg btn-block" data-act="welcome">Start studying</button></div>`)}
 
 // ================= EVENTS =================

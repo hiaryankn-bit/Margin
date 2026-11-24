@@ -21,15 +21,17 @@ function frs(n,d){const f=frac(n,d);if(f.d===1)return minus(f.n);return (f.n<0?'
 function frt(n,d){const f=frac(n,d);if(f.d===1)return minus(f.n);return minus(`${f.n}/${f.d}`)}
 
 // Multiple choice. correct + wrong are HTML strings; dedupe by text.
-function mc(prompt,correct,wrong,steps,hint,extra={}){
-  const seen=new Set([String(correct)]);const opts=[{key:'o0',html:String(correct)}];let k=1;
+const negFix=t=>String(t).replace(/(^|[\s(=,;\[])-(?=\d)/g,'$1−');
+const anFix=p=>negFix(String(p).replace(/(^|[.>] )A (?=(8\d*|11|18)(\.\d+)? )/g,'$1An '));
+function mc(prompt,correct,wrong,steps,hint,extra={}){prompt=anFix(prompt);
+  correct=negFix(correct);wrong=wrong.map(negFix);const seen=new Set([String(correct)]);const opts=[{key:'o0',html:String(correct)}];let k=1;
   for(const w of wrong){if(opts.length>=(extra.n||4))break;const s=String(w);if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
   return{prompt,options:extra.keep?opts:shuffle(opts),answer:'o0',steps:steps||[],hint:hint||'',...extra};
 }
 // True/false
 function tf(prompt,t,expl,hint){return{prompt:`<div class="tf">True or false?</div>${prompt}`,options:[{key:'T',html:'True'},{key:'F',html:'False'}],answer:t?'T':'F',steps:[`<b>${t?'True':'False'}.</b> ${expl}`],hint:hint||'Check the hypotheses carefully, or look for a counterexample.'}}
 // Numeric: MC with formatted numbers + typed in hard mode. o: {wrong:[], fmt, tol (relative), abs, unit, pre, post, int}
-function nq(prompt,value,o={}){
+function nq(prompt,value,o={}){prompt=anFix(prompt);
   const fmt=o.fmt||(v=>o.int?minus(String(Math.round(v))):sig(v,o.s||3));
   const unit=o.unit?` ${o.unit}`:'';
   const right=fmt(value)+unit;const seen=new Set([right]);const opts=[{key:'o0',html:right}];let k=1;

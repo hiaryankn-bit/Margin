@@ -250,6 +250,16 @@ button.row:hover,a.row:hover{background:var(--surface-2)}
 .opt:active{transform:scale(.995)}
 .opt .k{flex:none}
 .opt .ic{margin-left:auto;flex:none;opacity:0}
+.opts.sel .opt .box{flex:none;width:20px;height:20px;border-radius:5px;box-shadow:inset 0 0 0 1.5px var(--line-strong,var(--muted));transition:background .15s,box-shadow .15s}
+.opts.sel .opt.on{box-shadow:inset 0 0 0 1.5px var(--ink)}.opts.sel .opt.on .box{background:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.opts.sel .opt.on .box::after{content:'';display:block;width:6px;height:11px;margin:2px 0 0 6.5px;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.opts.sel .opt.right .box{background:var(--good);box-shadow:none}.opts.sel .opt.wrong .box{background:var(--bad);box-shadow:none}
+.opt.missed{background:transparent;box-shadow:inset 0 0 0 1.5px var(--good);border-style:dashed}.opt.missed .ic{opacity:1;color:var(--good)}
+.guide .gl{margin:6px 0 0;padding-left:20px;display:grid;gap:6px}.guide .rs-h .gm{margin-left:auto;color:var(--muted);font-size:14px}
+.guide .gex{margin:10px 0;padding:10px 12px;border-radius:var(--r);background:var(--surface-2)}.guide .gex summary{cursor:pointer;font-weight:500}
+.guide .gbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.selans{margin:4px 0 0;padding-left:18px;display:grid;gap:4px}
+.selbar{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);margin-top:var(--s3)}
 .opt.right{background:var(--good-soft);box-shadow:inset 0 0 0 1.5px var(--good)}.opt.right .ic{opacity:1;color:var(--good)}.opt.right .k{color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
 .opt.wrong{background:var(--bad-soft);box-shadow:inset 0 0 0 1.5px var(--bad);animation:nudge 300ms var(--ease)}.opt.wrong .ic{opacity:1;color:var(--bad)}.opt.wrong .k{color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
 .opt.dim{opacity:.5}
@@ -580,9 +590,10 @@ function frt(n,d){const f=frac(n,d);if(f.d===1)return minus(f.n);return minus(`$
 // Multiple choice. correct + wrong are HTML strings; dedupe by text.
 const negFix=t=>String(t).replace(/(^|[\s(=,;\[])-(?=\d)/g,'$1−');
 const anFix=p=>negFix(String(p).replace(/(^|[.>] )A (?=(8\d*|11|18)(\.\d+)? )/g,'$1An '));
+let OPTN=4; // options per question, set per course by examfmt.js
 function mc(prompt,correct,wrong,steps,hint,extra={}){prompt=anFix(prompt);
   correct=negFix(correct);wrong=wrong.map(negFix);const seen=new Set([String(correct)]);const opts=[{key:'o0',html:String(correct)}];let k=1;
-  for(const w of wrong){if(opts.length>=(extra.n||4))break;const s=String(w);if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
+  for(const w of wrong){if(opts.length>=(extra.n||OPTN))break;const s=String(w);if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
   return{prompt,options:extra.keep?opts:shuffle(opts),answer:'o0',steps:steps||[],hint:hint||'',...extra};
 }
 // True/false
@@ -595,7 +606,7 @@ function nq(prompt,value,o={}){prompt=anFix(prompt);
   const cand=[...(o.wrong||[])];
   const facs=o.int?[1,-1,2,-2,3,5]:[2,0.5,1.5,0.75,1.25,0.8,3,-1];
   for(const f of facs)cand.push(o.int?value+f*(o.step||1):value*f);
-  for(const w of cand){if(opts.length>=4)break;if(w==null||!isFinite(w))continue;if(o.pos&&w<=0)continue;if(o.nonneg&&w<0)continue;const s=fmt(w)+unit;if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
+  for(const w of cand){if(opts.length>=OPTN)break;if(w==null||!isFinite(w))continue;if(o.pos&&w<=0)continue;if(o.nonneg&&w<0)continue;const s=fmt(w)+unit;if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
   const tol=o.int?0:(o.tol??0.02);
   return{prompt,options:shuffle(opts),answer:'o0',steps:o.steps||[],hint:o.hint||'',num:{value,tol,abs:o.abs,int:!!o.int,mod:o.mod,pre:o.pre||'',post:(o.post||'')+(o.unit?' '+o.unit:''),show:right}};
 }
@@ -2329,6 +2340,346 @@ function gSplit(){
 }
 {const w=COURSES.find(c=>c.id==='m135').worlds.find(w=>w.id==='crt');const i=w.nodes.findIndex(n=>n.id==='crtd');w.nodes.splice(i+1,0,{id:'split',name:'Split the Modulus',icon:'✂️',gen:gSplit})}
 
+// ---------- PHYS 121 in exam style ----------
+// The midterms are conceptual multiple choice (5 options, "None of the above is correct" as e),
+// some "Choose all correct answers", and multi-part problems solved in symbols.
+// Numeric plug-in questions are replaced, except vector addition (which appeared as MC) and the lab/units topics.
+const PX={};
+const pxMC=(it)=>mc(it.q,it.a,shuffle(it.w.slice()).slice(0,3),[it.why],it.hint||'Picture the situation and ask what each force or quantity is actually doing.');
+const pxWhich=(bank)=>{const T=shuffle(bank.filter(s=>s[1])),F=shuffle(bank.filter(s=>!s[1]));if(!T.length||F.length<3)return null;const k=T[0],w=F.slice(0,3);
+  return mc('Which one of the following statements is correct?',k[0],w.map(s=>s[0]),[`<b>Correct:</b> ${k[0]} ${k[2]}`,...w.map(s=>`<b>Not correct:</b> ${s[0]} ${s[2]}`)],'Test each statement against a definition or a quick example.')};
+const pxSel=(bank,stem)=>{const pick5=shuffle(bank.slice()).slice(0,5);return selAll(stem||'Which of the following statements are correct?',pick5.map(s=>({text:s[0],true:s[1],why:s[2]})),'Choose all correct answers.')};
+// Symbolic multi-part: parts = [{q,a,w:[...],why}]
+const pxSym=(stem,parts)=>multi(stem,parts.map(p=>mc(p.q,p.a,shuffle(p.w.slice()).slice(0,3),[p.why],p.hint||'Write the general relation first, then specialise it to this problem.')));
+function pxNode(id,{mcs=[],bank=[],sym=[],num=[]}){PX[id]=()=>{const r=Math.random();
+  if(sym.length&&r<.22)return pick(sym)();
+  if(num.length&&r<.32)return pick(num)();
+  if(bank.length>=5&&r<.5)return Math.random()<.55?pxSel(bank):pxWhich(bank)||pxMC(pick(mcs));
+  return mcs.length?pxMC(pick(mcs)):pxSel(bank)}}
+
+// ===== Vectors =====
+pxNode('vec',{
+ mcs:[
+  {q:'Vector A points in the second quadrant. What are the signs of its components?',a:'A<sub>x</sub> &lt; 0, A<sub>y</sub> &gt; 0',w:['A<sub>x</sub> &gt; 0, A<sub>y</sub> &gt; 0','A<sub>x</sub> &lt; 0, A<sub>y</sub> &lt; 0','A<sub>x</sub> &gt; 0, A<sub>y</sub> &lt; 0'],why:'Second quadrant is up and to the left: x negative, y positive.'},
+  {q:'Two nonzero vectors A and B have A · B = 0. Which must be true?',a:'A and B are perpendicular.',w:['A and B are parallel.','|A × B| = 0.','A + B = 0.'],why:'A · B = AB cos θ = 0 with A, B ≠ 0 means cos θ = 0, so θ = 90°.'},
+  {q:'Two nonzero vectors have |A × B| = 0. Which must be true?',a:'A and B are parallel or antiparallel.',w:['A and B are perpendicular.','A · B = 0.','|A| = |B|.'],why:'|A × B| = AB sin θ = 0 means θ = 0° or 180°.'},
+  {q:'Vectors A (magnitude 3) and B (magnitude 5) can be added in any direction. Which magnitude is impossible for A + B?',a:'9',w:['2','5','8'],why:'|A + B| lies between |5 − 3| = 2 and 5 + 3 = 8.'},
+  {q:'The direction of A × B is…',a:'perpendicular to both A and B, given by the right-hand rule.',w:['along A.','halfway between A and B.','along B.'],why:'The cross product is perpendicular to the plane of A and B; the right-hand rule picks which way.'}],
+ bank:[
+  ['A · B is a scalar.',true,'The dot product gives a number.'],
+  ['A × B = B × A.',false,'The cross product is anticommutative: A × B = −(B × A).'],
+  ['If A · B &lt; 0, the angle between A and B is more than 90°.',true,'cos θ &lt; 0 for 90° &lt; θ ≤ 180°.'],
+  ['The magnitude of a vector can be negative.',false,'Magnitudes are lengths, always ≥ 0.'],
+  ['A unit vector has magnitude 1.',true,'That is the definition.'],
+  ['The components of a vector depend on the choice of axes, but its magnitude doesn\'t.',true,'Rotating the axes changes components but not length.'],
+  ['|A + B| is always greater than |A|.',false,'If B points against A, the sum can be shorter.']],
+ sym:[()=>{const th=pick(['θ','φ']);return pxSym(`A vector A has magnitude A and makes angle ${th} with the +x axis, measured counterclockwise.`,[
+   {q:'What is A<sub>x</sub>?',a:`A cos ${th}`,w:[`A sin ${th}`,`A tan ${th}`,`A/cos ${th}`],why:'Adjacent side to the angle: A cos θ.'},
+   {q:'What is A<sub>y</sub>?',a:`A sin ${th}`,w:[`A cos ${th}`,`−A sin ${th}`,`A/sin ${th}`],why:'Opposite side to the angle: A sin θ.'},
+   {q:`Express ${th} in terms of the components.`,a:`tan ${th} = A<sub>y</sub>/A<sub>x</sub>`,w:[`tan ${th} = A<sub>x</sub>/A<sub>y</sub>`,`sin ${th} = A<sub>x</sub>/A`,`cos ${th} = A<sub>y</sub>/A`],why:'Divide the two component equations: A_y/A_x = sin θ/cos θ = tan θ. Check the quadrant when taking arctan.'}])}],
+ num:[()=>{const v=pick([80,100,120,150]),w=pick([20,30,40]),ang=pick([30,45,60]);const vx=w*Math.cos(ang*D2R),vy=v+w*Math.sin(ang*D2R);const m=Math.hypot(vx,vy),d=Math.atan(vx/vy)/D2R;
+   const f=(M,D,dir)=>`${Math.round(M)} m/s at ${Math.round(D)}° ${dir} of north`;
+   return mc(`An airplane heads due north with an airspeed of ${v} m/s. A ${w} m/s wind blows toward ${ang}° north of east. What is the plane's velocity relative to the ground?`,f(m,d,'east'),[f(v+w,ang,'east'),f(m,d,'west'),f(Math.hypot(v,w),Math.atan(w/v)/D2R,'east')],[`v<sub>ground</sub> = v<sub>plane, air</sub> + v<sub>air, ground</sub>.`,`East: ${w} cos ${ang}° = ${s3(vx)} m/s. North: ${v} + ${w} sin ${ang}° = ${s3(vy)} m/s.`,`Magnitude √(${s3(vx)}² + ${s3(vy)}²) = ${s3(m)} m/s, at arctan(${s3(vx)}/${s3(vy)}) = ${s3(d)}° east of north.`])}]});
+
+// ===== 1D kinematics =====
+const KIN_BANK=[
+ ['An object can have zero velocity and nonzero acceleration at the same instant.',true,'A ball at the top of its flight: v = 0, a = −g.'],
+ ['If velocity is negative, the object must be slowing down.',false,'Slowing down means v and a have opposite signs; the sign of v alone says nothing.'],
+ ['The slope of a position–time graph is the velocity.',true,'v = dx/dt.'],
+ ['The area under a velocity–time graph is the displacement.',true,'Δx = ∫ v dt.'],
+ ['The slope of a velocity–time graph is the displacement.',false,'The slope is the acceleration, a = dv/dt.'],
+ ['For constant acceleration, v<sub>avg</sub> = ½(v<sub>i</sub> + v<sub>f</sub>).',true,'Velocity changes linearly, so the average is the midpoint.'],
+ ['An object speeding up in the −x direction has negative acceleration.',true,'Speeding up: a has the same sign as v, which is negative.'],
+ ['Distance travelled and displacement are always equal in magnitude.',false,'They differ whenever the object reverses direction.'],
+ ['If two objects have the same acceleration, they have the same velocity.',false,'Same acceleration only means their velocities change at the same rate.']];
+pxNode('kin',{
+ mcs:[
+  {q:'A car starts from rest with constant acceleration a. How far has it gone after time t?',a:'½at²',w:['at²','at','2at²'],why:'Δx = v<sub>i</sub>t + ½at² with v<sub>i</sub> = 0.'},
+  {q:'A car starts from rest with constant acceleration a. What is its speed after travelling distance d?',a:'√(2ad)',w:['2ad','√(ad)','ad/2'],why:'v<sub>f</sub>² = v<sub>i</sub>² + 2aΔx = 2ad.'},
+  {q:'A car moving at speed v brakes with constant deceleration of magnitude a. What is its stopping distance?',a:'v²/(2a)',w:['v²/a','v/(2a)','2v²/a'],why:'0 = v² − 2a·d ⇒ d = v²/(2a).'},
+  {q:'If a car\'s initial speed doubles and its braking deceleration is the same, its stopping distance…',a:'is multiplied by 4.',w:['doubles.','stays the same.','is multiplied by √2.'],why:'d = v²/(2a), so d ∝ v².'},
+  {q:'A ball is thrown straight up. At the top of its flight, which is true?',a:'v = 0 and a = −g (taking up as +).',w:['v = 0 and a = 0.','v = 0 and a = +g.','v is maximum and a = 0.'],why:'Gravity keeps acting: the acceleration is −g throughout the flight.'}],
+ bank:KIN_BANK,
+ sym:[()=>pxSym('A car starts from rest at x = 0 and accelerates with constant acceleration a. A friend at x = 0 throws a ball at t = 0 that lands in the car when the car has travelled distance d. Take g &gt; 0 as the magnitude of free-fall acceleration and ignore air resistance.',[
+   {q:'How long is the ball in the air?',a:'t = √(2d/a)',w:['t = √(d/a)','t = 2d/a','t = √(2a/d)'],why:'The car must reach d at the landing time: d = ½at² ⇒ t = √(2d/a).'},
+   {q:'What is the car\'s speed when the ball lands?',a:'√(2ad)',w:['√(ad)','2ad','a√(d/2)'],why:'v = at = a√(2d/a) = √(2ad).'},
+   {q:'What is the ball\'s initial horizontal velocity?',a:'√(ad/2)',w:['√(2ad)','√(ad)','d/a'],why:'Horizontal motion is uniform: v<sub>x</sub> = d/t = d/√(2d/a) = √(ad/2).'},
+   {q:'What is the ball\'s initial vertical velocity (it lands at launch height)?',a:'g√(d/(2a))',w:['g√(2d/a)','√(2gd)','g d/a'],why:'0 = v<sub>y</sub>t − ½gt² ⇒ v<sub>y</sub> = gt/2 = (g/2)√(2d/a) = g√(d/(2a)).'},
+   {q:'What is the ratio (car\'s final speed)/(ball\'s horizontal speed)?',a:'2',w:['1','½','√2'],why:'√(2ad)/√(ad/2) = 2. Same displacement in the same time: the car averages the ball\'s speed, so it ends at twice it.'}])]});
+pxNode('graph',{
+ mcs:[
+  {q:'On a position–time graph, a straight line with negative slope means the object…',a:'moves in the −x direction at constant velocity.',w:['is slowing down.','has negative acceleration.','is at rest below the origin.'],why:'Constant slope = constant velocity; negative slope = moving in −x.'},
+  {q:'A velocity–time graph is a horizontal line above the axis. The acceleration–time graph is…',a:'zero for all times.',w:['a horizontal line above the axis.','a line with positive slope.','a horizontal line below the axis.'],why:'Constant velocity has zero slope, so a = 0.'},
+  {q:'On a velocity–time graph, the object reverses direction where…',a:'the graph crosses v = 0.',w:['the slope is zero.','the graph has a maximum.','the area under the graph is zero.'],why:'Direction changes when v changes sign.'},
+  {q:'A velocity–time graph is a straight line from (0, 10 m/s) down to (5 s, −10 m/s). The displacement over the 5 s is…',a:'0 m',w:['50 m','25 m','−50 m'],why:'Area above the axis (+25 m) cancels the area below (−25 m).'}],
+ bank:KIN_BANK});
+
+// ===== 2D motion =====
+const PROJ_BANK=[
+ ['At the top of a projectile\'s path, its velocity is zero.',false,'Only v<sub>y</sub> = 0; v<sub>x</sub> is unchanged.'],
+ ['A projectile\'s acceleration is the same at every point of its flight (no air resistance).',true,'a = g, straight down, throughout.'],
+ ['The horizontal velocity of a projectile is constant (no air resistance).',true,'No horizontal force, so a<sub>x</sub> = 0.'],
+ ['A ball dropped and a ball thrown horizontally from the same height land at the same time.',true,'Vertical motion is the same: v<sub>y,i</sub> = 0 for both.'],
+ ['On level ground, launch angles of 30° and 60° give the same range at the same speed.',true,'R = v²sin(2θ)/g and sin 60° = sin 120°.'],
+ ['A heavier projectile falls faster (no air resistance).',false,'Free-fall acceleration doesn\'t depend on mass.'],
+ ['At the highest point, the acceleration and velocity are perpendicular.',true,'v is horizontal there and a = g is vertical.']];
+pxNode('proj',{
+ mcs:[
+  {q:'A projectile is launched at speed v₀ and angle θ above level ground. Its time of flight is…',a:'2v₀ sin θ / g',w:['v₀ sin θ / g','2v₀ cos θ / g','v₀² sin 2θ / g'],why:'y = v₀ sin θ · t − ½gt² = 0 ⇒ t = 2v₀ sin θ / g.'},
+  {q:'A projectile is launched at speed v₀ and angle θ. Its maximum height above the launch point is…',a:'v₀² sin²θ / (2g)',w:['v₀² sin θ / g','v₀² sin 2θ / g','v₀ sin θ / (2g)'],why:'0 = (v₀ sin θ)² − 2gH.'},
+  {q:'On level ground, which launch angle gives the maximum range (no air resistance)?',a:'45°',w:['30°','60°','90°'],why:'R ∝ sin 2θ, largest when 2θ = 90°.'},
+  {q:'A ball rolls off a table at speed v and falls height h. How far from the table does it land?',a:'v√(2h/g)',w:['v√(h/g)','2vh/g','√(2gh)'],why:'Fall time t = √(2h/g); horizontal distance = vt.'}],
+ bank:PROJ_BANK});
+pxNode('rel',{
+ mcs:[
+  {q:'A boat heads straight across a river (perpendicular to the current). Compared with still water, the time to cross is…',a:'the same.',w:['longer.','shorter.','impossible to tell without the current speed.'],why:'The current is parallel to the banks, so it doesn\'t change the across-component of velocity.'},
+  {q:'To land directly across from its start, a boat must…',a:'aim partly upstream.',w:['aim straight across.','aim partly downstream.','go faster than the current only if it aims downstream.'],why:'The upstream component of its velocity must cancel the current.'},
+  {q:'Car A moves east at 20 m/s and car B moves west at 15 m/s. The velocity of A relative to B is…',a:'35 m/s east',w:['5 m/s east','35 m/s west','5 m/s west'],why:'v<sub>AB</sub> = v<sub>A</sub> − v<sub>B</sub> = 20 − (−15) = 35 m/s east.'}],
+ bank:[
+  ['v<sub>AB</sub> = −v<sub>BA</sub>.',true,'Swapping the observer reverses the relative velocity.'],
+  ['Acceleration is the same in every frame moving at constant velocity relative to the first.',true,'Adding a constant velocity doesn\'t change dv/dt.'],
+  ['A passenger walking forward on a train has a ground speed less than the train\'s.',false,'Speeds add: v<sub>ground</sub> = v<sub>train</sub> + v<sub>walk</sub>.'],
+  ['Viewed from a frame drifting left at V₀, an object at rest appears to move right at V₀.',true,'v′ = v − v<sub>frame</sub> = 0 − (−V₀) = +V₀.'],
+  ['The time to cross a river depends on how fast the current is, for a boat aimed straight across.',false,'Only the across-component matters for crossing time.']],
+ num:PX.vec?[]:[]});
+PX.relNum=()=>{const v=pick([80,100,120]),w=pick([20,30]),ang=pick([30,45,60]);const vx=w*Math.cos(ang*D2R),vy=v+w*Math.sin(ang*D2R);const m=Math.hypot(vx,vy),d=Math.atan(vx/vy)/D2R;const f=(M,D,dir)=>`${Math.round(M)} m/s at ${Math.round(D)}° ${dir} of north`;
+  return mc(`An airplane heads due north with an airspeed of ${v} m/s. A ${w} m/s wind blows toward ${ang}° north of east. What is the plane's velocity relative to the ground?`,f(m,d,'east'),[f(v+w,ang,'east'),f(m,d,'west'),f(Math.hypot(v,w),Math.atan(w/v)/D2R,'east')],[`v<sub>ground</sub> = v<sub>plane, air</sub> + v<sub>air, ground</sub>.`,`East: ${w} cos ${ang}° = ${s3(vx)}. North: ${v} + ${w} sin ${ang}° = ${s3(vy)}.`,`|v| = ${s3(m)} m/s at ${s3(d)}° east of north.`])};
+{const g0=PX.rel;PX.rel=()=>Math.random()<.25?PX.relNum():g0()}
+pxNode('circ',{
+ mcs:[
+  {q:'A ball swings in a vertical circle and is speeding up on the way down. At a point on the descending side, its acceleration points…',a:'partly toward the center and partly along the motion (down the path).',w:['exactly toward the center.','straight down only.','exactly along the velocity.'],why:'Speeding up adds a tangential component along v; moving in a circle needs a radial component toward the center.'},
+  {q:'An object moves in a circle at constant speed. Its acceleration…',a:'points toward the center, with magnitude v²/r.',w:['is zero because the speed is constant.','points along the velocity.','points away from the center.'],why:'The direction of v changes, so a ≠ 0; a<sub>c</sub> = v²/r toward the center.'},
+  {q:'At the same speed, the radius of a circular path is halved. The centripetal acceleration…',a:'doubles.',w:['halves.','is multiplied by 4.','stays the same.'],why:'a = v²/r ∝ 1/r.'},
+  {q:'At the same radius, the speed doubles. The centripetal acceleration…',a:'is multiplied by 4.',w:['doubles.','halves.','stays the same.'],why:'a = v²/r ∝ v².'}],
+ bank:[
+  ['In uniform circular motion, velocity and acceleration are perpendicular.',true,'v is tangent; a points to the center.'],
+  ['In uniform circular motion, the velocity is constant.',false,'Speed is constant but the direction keeps changing.'],
+  ['If an object slows down while moving in a circle, its acceleration has a component opposite to its velocity.',true,'The tangential component points against v when slowing.'],
+  ['Centripetal acceleration is a separate force acting on the object.',false,'It\'s an acceleration; real forces (tension, friction, normal, gravity) supply it.'],
+  ['The period of uniform circular motion is T = 2πr/v.',true,'One circumference per period.']]});
+
+// ===== Newton's laws =====
+const INC_BANK=[
+ ['On an incline, the normal force equals mg cos θ when nothing else pushes perpendicular to the surface.',true,'No acceleration perpendicular to the surface.'],
+ ['A block at rest on an incline feels static friction of magnitude μ<sub>s</sub>mg cos θ.',false,'μ<sub>s</sub>N is only the maximum. At rest, friction is whatever balances: mg sin θ.'],
+ ['Static friction can point up or down the incline depending on the other forces.',true,'It opposes the direction the block would slip.'],
+ ['Kinetic friction always points opposite the velocity relative to the surface.',true,'It opposes relative sliding.'],
+ ['A block sliding up a frictionless incline accelerates down the incline, even while moving up.',true,'The only force along the slope is mg sin θ, down the slope.'],
+ ['The acceleration of a box on a frictionless incline is zero at its highest point.',false,'a = g sin θ down the slope at every point, including the top.']];
+pxNode('incline',{
+ mcs:[
+  {q:'A block slides DOWN an incline with kinetic friction μ<sub>k</sub>. Its acceleration is…',a:'g(sin θ − μ<sub>k</sub> cos θ) down the slope',w:['g(sin θ + μ<sub>k</sub> cos θ) down the slope','g sin θ down the slope','μ<sub>k</sub>g cos θ up the slope'],why:'Along the slope: mg sin θ down, friction μ<sub>k</sub>mg cos θ up.'},
+  {q:'A box slides up a frictionless incline, stops, and slides back down. Its acceleration is…',a:'down the incline the whole time, including at the top.',w:['up the incline while moving up.','zero at its highest point.','down the incline only while moving down.'],why:'The net force is always mg sin θ down the slope.'},
+  {q:'A block rests on an incline without slipping. As the angle is slowly increased (still not slipping), the friction force…',a:'increases.',w:['decreases.','stays μ<sub>s</sub>mg cos θ.','stays the same.'],why:'At rest, f = mg sin θ, which grows with θ.'},
+  {q:'A block is just about to slip on an incline. The angle satisfies…',a:'tan θ = μ<sub>s</sub>',w:['sin θ = μ<sub>s</sub>','cos θ = μ<sub>s</sub>','tan θ = μ<sub>k</sub>'],why:'mg sin θ = μ<sub>s</sub>mg cos θ.'}],
+ bank:INC_BANK,
+ sym:[()=>pxSym('A block of mass m slides down an incline of angle θ with kinetic friction coefficient μ<sub>k</sub>. Take the i-axis down the slope and j perpendicular to it.',[
+   {q:'The j-component of Newton\'s 2nd law gives…',a:'N = mg cos θ',w:['N = mg','N = mg sin θ','N = mg/cos θ'],why:'No acceleration perpendicular to the slope: N − mg cos θ = 0.'},
+   {q:'The i-component of Newton\'s 2nd law gives…',a:'mg sin θ − μ<sub>k</sub>N = ma',w:['mg sin θ + μ<sub>k</sub>N = ma','mg cos θ − μ<sub>k</sub>N = ma','μ<sub>k</sub>N − mg sin θ = ma'],why:'Gravity\'s component down the slope minus friction up the slope.'},
+   {q:'So the acceleration is…',a:'g(sin θ − μ<sub>k</sub> cos θ)',w:['g(sin θ + μ<sub>k</sub> cos θ)','g(cos θ − μ<sub>k</sub> sin θ)','g sin θ'],why:'Substitute N = mg cos θ and divide by m.'},
+   {q:'Special case: for what μ<sub>k</sub> does the block slide at constant speed?',a:'μ<sub>k</sub> = tan θ',w:['μ<sub>k</sub> = sin θ','μ<sub>k</sub> = cos θ','μ<sub>k</sub> = 1'],why:'a = 0 ⇒ sin θ = μ<sub>k</sub> cos θ.'}])]});
+pxNode('atwood',{
+ mcs:[
+  {q:'Two blocks are tied by a massless, unstretchable rope over a massless, frictionless pulley. Compared with each other, their accelerations are…',a:'equal in magnitude.',w:['different; the heavier one accelerates more.','equal only if the masses are equal.','zero unless one is heavier.'],why:'An unstretchable rope makes both move the same distance in the same time.'},
+  {q:'A hanging mass M₂ pulls a block M₁ across a frictionless table through a massless pulley. The rope tension is…',a:'less than M₂g.',w:['equal to M₂g.','greater than M₂g.','equal to M₁g.'],why:'M₂ accelerates down, so M₂g − T = M₂a &gt; 0.'},
+  {q:'In a two-mass system with a movable pulley, M₂ hangs from the movable pulley. The acceleration of M₂ is…',a:'half the acceleration of M₁.',w:['equal to that of M₁.','twice that of M₁.','g.'],why:'The rope on each side of the movable pulley shortens by half of M₁\'s displacement.'},
+  {q:'An elevator accelerates downward at a &lt; g. The scale reading for a person of mass m is…',a:'m(g − a)',w:['m(g + a)','mg','ma'],why:'N − mg = −ma ⇒ N = m(g − a).'}],
+ bank:[
+  ['The tension is the same throughout a massless rope over a massless, frictionless pulley.',true,'No mass and no friction means no net force is needed to change the tension.'],
+  ['In an Atwood machine, the acceleration of the hanging masses can be greater than g.',false,'a = (m₂ − m₁)g/(m₁ + m₂) &lt; g.'],
+  ['If M₂ is heavier than M₁ and moving up the incline, M₁\'s acceleration is greater than M₂\'s.',false,'They\'re connected by one rope: same magnitude.'],
+  ['The scale reading in an elevator moving up at constant speed equals mg.',true,'Constant velocity: a = 0, so N = mg.'],
+  ['A hanging mass falling while attached to a rope has acceleration g.',false,'The tension slows it: a &lt; g.']],
+ sym:[()=>pxSym('Masses m₁ and m₂ (m₂ &gt; m₁) hang on either side of a massless, frictionless pulley on a massless rope.',[
+   {q:'Newton\'s 2nd law for m₂ (taking down as +) is…',a:'m₂g − T = m₂a',w:['T − m₂g = m₂a','m₂g + T = m₂a','m₂g − T = 0'],why:'Gravity down, tension up.'},
+   {q:'Newton\'s 2nd law for m₁ (taking up as +) is…',a:'T − m₁g = m₁a',w:['m₁g − T = m₁a','T + m₁g = m₁a','T = m₁g'],why:'Tension up, gravity down; m₁ accelerates up.'},
+   {q:'Adding the equations, a = …',a:'(m₂ − m₁)g/(m₁ + m₂)',w:['(m₂ − m₁)g/m₂','(m₁ + m₂)g/(m₂ − m₁)','m₂g/(m₁ + m₂)'],why:'T cancels: (m₂ − m₁)g = (m₁ + m₂)a.'},
+   {q:'The tension is T = …',a:'2m₁m₂g/(m₁ + m₂)',w:['m₂g','(m₁ + m₂)g/2','m₁m₂g/(m₁ + m₂)'],why:'T = m₁(g + a) = m₁g·2m₂/(m₁ + m₂).'},
+   {q:'Check the special case m₁ = m₂. What happens?',a:'a = 0 and T = mg: balanced.',w:['a = g/2.','T = 0.','a = g.'],why:'Equal masses balance; the formulas give a = 0, T = mg.'}])]});
+pxNode('newton',{
+ mcs:[
+  {q:'A heavy truck hits a light car. During the collision, the force of the truck on the car is…',a:'equal in magnitude to the force of the car on the truck.',w:['larger than the force of the car on the truck.','smaller than the force of the car on the truck.','zero, because the truck keeps moving.'],why:'Newton\'s 3rd law: the pair forces are always equal and opposite.'},
+  {q:'Which pair is a Newton\'s 3rd-law pair for a book resting on a table?',a:'Earth pulls the book down; the book pulls Earth up.',w:['Gravity on the book and the normal force on the book.','The normal force on the book and the book\'s weight on the table.','The table\'s weight and the floor\'s normal force.'],why:'3rd-law pairs act on two different objects and are the same type of force.'},
+  {q:'A constant net force acts on an object. Its velocity…',a:'changes at a constant rate.',w:['is constant.','increases forever at an increasing rate.','must be in the direction of the force.'],why:'F = ma: constant force gives constant acceleration.'},
+  {q:'A wedge (mass M) on a frictionless floor is pushed with force F<sub>a</sub>; a block (mass m) rides on it without slipping. Their common acceleration is…',a:'F<sub>a</sub>/(M + m)',w:['F<sub>a</sub>/M','F<sub>a</sub>/m','F<sub>a</sub>(M + m)'],why:'Treat block + wedge as one system: the internal forces cancel.'}],
+ bank:[
+  ['Newton\'s 3rd-law pair forces act on different objects.',true,'That\'s why they don\'t cancel each other.'],
+  ['The normal force on a book resting on a table and its weight are a 3rd-law pair.',false,'Both act on the book; they\'re different kinds of force.'],
+  ['An object can move without a net force acting on it.',true,'Constant velocity needs no net force (1st law).'],
+  ['The normal force always equals mg.',false,'It\'s whatever is needed: e.g. mg cos θ on an incline, m(g + a) in an accelerating elevator.'],
+  ['In a collision, the lighter object feels the larger force.',false,'Equal forces; the lighter one has the larger acceleration.'],
+  ['In a free-body diagram, you draw only forces acting ON the chosen object.',true,'Forces it exerts on other things go on their diagrams.']]});
+pxNode('bank',{
+ mcs:[
+  {q:'A car rounds a banked curve so slowly that it\'s about to slip. The friction force on the tires points…',a:'up the bank.',w:['down the bank.','toward the center of the curve.','opposite the direction of driving.'],why:'Too slow: the car would slide down the slope, so friction acts up the bank.'},
+  {q:'A car rounds a banked curve faster than the design speed. Friction points…',a:'down the bank.',w:['up the bank.','zero.','forward.'],why:'Too fast: it tends to slide up and out, so friction acts down the slope.'},
+  {q:'A roller coaster car goes around a vertical loop of radius R. The minimum speed at the top to stay on the track is…',a:'√(gR)',w:['0','√(2gR)','gR'],why:'At the minimum, N = 0 and gravity alone provides v²/R.'},
+  {q:'Starting from rest on a frictionless track, the minimum release height to make it around a loop of diameter D is…',a:'5D/4',w:['D','2D','3D/2'],why:'mgh = mg(2R) + ½m(gR) ⇒ h = 5R/2 = 5D/4.'}],
+ bank:[
+  ['At the design speed of a banked curve, no friction is needed.',true,'The normal force\'s horizontal component supplies exactly mv²/r.'],
+  ['At the top of a loop, the minimum speed condition is v = 0.',false,'It\'s N = 0, which gives v = √(gR).'],
+  ['On a flat curve, static friction points toward the center of the curve.',true,'It supplies the centripetal force.'],
+  ['The normal force at the bottom of a loop is greater than mg.',true,'N − mg = mv²/R &gt; 0.'],
+  ['Centripetal force is an extra force you add to the free-body diagram.',false,'It\'s the net of the real radial forces.']],
+ sym:[()=>pxSym('A roller-coaster car of mass m starts from rest at height h on a frictionless track and goes around a vertical loop of diameter D.',[
+   {q:'Using ΔE<sub>tot</sub> = 0, the speed v<sub>t</sub> at the top of the loop is…',a:'√(2g(h − D))',w:['√(2gh)','√(2g(h − D/2))','√(g(h − D))'],why:'mgh = mgD + ½mv<sub>t</sub>² (the top is at height D).'},
+   {q:'At the top of the loop, Newton\'s 2nd law (toward the center) reads…',a:'N + mg = mv<sub>t</sub>²/(D/2)',w:['N − mg = mv<sub>t</sub>²/(D/2)','mg − N = mv<sub>t</sub>²/(D/2)','N = mg'],why:'Both N and gravity point down, toward the center.'},
+   {q:'The minimum h to keep contact is…',a:'5D/4',w:['D','2D','3D/2'],why:'Set N = 0: v<sub>t</sub>² = gD/2. Then 2g(h − D) = gD/2 ⇒ h = 5D/4.'},
+   {q:'Is your answer dimensionally consistent?',a:'Yes: h and D are both lengths.',w:['No: h should depend on m.','No: h should depend on g.','Only if D is in metres.'],why:'Mass and g cancel; a length equals a number times a length.'}])]});
+
+// ===== Work & energy =====
+const WE_BANK=[
+ ['The normal force on a block sliding on a fixed surface does no work.',true,'It\'s perpendicular to the displacement.'],
+ ['Kinetic friction on a block sliding over a fixed surface does negative work.',true,'It points opposite the displacement.'],
+ ['W<sub>net</sub> = ΔK only if there\'s no friction.',false,'The work–kinetic energy theorem always holds; friction is included in W<sub>net</sub>.'],
+ ['The power delivered by gravity to a falling coin is positive and increasing.',true,'P = F · v = mgv, and v grows as it falls.'],
+ ['Doing positive work on an object always increases its potential energy.',false,'Net positive work increases its kinetic energy (W<sub>net</sub> = ΔK).'],
+ ['The work done by a spring on a mass moving away from equilibrium is negative.',true,'The spring force points back toward equilibrium, opposite the displacement.'],
+ ['When the same force pushes two masses from rest over the same distance, they gain the same kinetic energy.',true,'W = Fd is the same, so ΔK is the same.'],
+ ['When the same force pushes two masses from rest for the same time, they gain the same momentum.',true,'Impulse FΔt is the same, so Δp is the same.']];
+pxNode('work',{
+ mcs:[
+  {q:'Two objects of different masses start from rest on a frictionless surface and are pushed by the same force over the same DISTANCE. Which is correct?',a:'They have the same final kinetic energy.',w:['They have the same final speed.','They have the same final momentum.','The lighter one has less kinetic energy.'],why:'W = Fd is the same, so ΔK is the same.'},
+  {q:'Two objects of different masses start from rest and are pushed by the same force for the same TIME. Which is correct?',a:'They have the same final momentum.',w:['They have the same final kinetic energy.','They have the same final speed.','The heavier one has more momentum.'],why:'Impulse FΔt = Δp is the same.'},
+  {q:'A coin falls from a high bridge (no air resistance). The power delivered to it by gravity is…',a:'positive and increasing with time.',w:['positive and constant.','negative and constant.','zero, since gravity is conservative.'],why:'P = mg·v and v increases linearly.'},
+  {q:'A block slides down an incline with kinetic friction. Which statement is correct?',a:'W<sub>gravity</sub> (+) + W<sub>friction</sub> (−) = ΔK, and the normal force does no work.',w:['W<sub>gravity</sub> (+) + W<sub>friction</sub> (+) = ΔK.','W<sub>gravity</sub> (−) + W<sub>friction</sub> (−) = ΔK.','The normal force does negative work.'],why:'Gravity has a component along the motion (+), friction opposes it (−), and N ⊥ motion.'}],
+ bank:WE_BANK});
+pxNode('energy',{
+ mcs:[
+  {q:'A box is pushed, then slides across a rough floor into a spring and stops momentarily. From just after the push until it stops, which is correct?',a:'ΔU<sub>spring</sub> is positive and ΔE<sub>thermal</sub> is positive.',w:['ΔE<sub>total</sub> is negative.','ΔU<sub>spring</sub> is negative.','ΔK is negative and ΔE<sub>thermal</sub> is negative.'],why:'The spring compresses (+U), friction heats things (+E<sub>th</sub>), K drops; the total for the isolated system is 0.'},
+  {q:'A mass on a horizontal spring moves from its far-right position back to equilibrium. Which is correct?',a:'The spring does positive work equal to ΔK; gravity and the normal force do no work.',w:['The spring does negative work.','The spring removes kinetic energy and the mass slows down.','Gravity does positive work.'],why:'Force and displacement both point toward equilibrium, so W<sub>spring</sub> &gt; 0 and the mass speeds up.'},
+  {q:'A car of mass m is released from rest at height h, crosses a rough patch of length s (μ<sub>k</sub>), then compresses a spring (k) by d. Energy conservation gives…',a:'mgh = μ<sub>k</sub>mgs + ½kd²',w:['mgh = ½kd²','mgh + μ<sub>k</sub>mgs = ½kd²','½kd² = μ<sub>k</sub>mgs'],why:'Gravitational energy becomes thermal energy (friction) and spring energy.'},
+  {q:'A car of mass m is released from rest at height h on a frictionless track, then must cross a rough horizontal patch of length s (μ<sub>k</sub>) to reach a spring. The minimum h for it to reach the spring is…',a:'μ<sub>k</sub>s',w:['s','μ<sub>k</sub>s/2','s/μ<sub>k</sub>'],why:'It needs mgh &gt; μ<sub>k</sub>mgs.'}],
+ bank:WE_BANK,
+ sym:[()=>pxSym('A car of mass m starts from rest at height h on a frictionless track, then crosses a horizontal patch of length s with kinetic friction μ<sub>k</sub>, then compresses a spring of constant k by a distance d before stopping.',[
+   {q:'Over the whole trip, the signs of the energy changes are…',a:'ΔU<sub>g</sub> −, ΔE<sub>th</sub> +, ΔU<sub>s</sub> +, ΔK 0',w:['ΔU<sub>g</sub> +, ΔE<sub>th</sub> −, ΔU<sub>s</sub> +, ΔK 0','ΔU<sub>g</sub> −, ΔE<sub>th</sub> +, ΔU<sub>s</sub> −, ΔK +','ΔU<sub>g</sub> −, ΔE<sub>th</sub> 0, ΔU<sub>s</sub> +, ΔK −'],why:'It descends (−U<sub>g</sub>), friction heats (+E<sub>th</sub>), the spring compresses (+U<sub>s</sub>), and it starts and ends at rest (ΔK = 0).'},
+   {q:'Solving ΔE<sub>tot</sub> = 0 for d gives…',a:'d = √(2mg(h − μ<sub>k</sub>s)/k)',w:['d = √(2mgh/k)','d = √(2mg(h + μ<sub>k</sub>s)/k)','d = 2mg(h − μ<sub>k</sub>s)/k'],why:'−mgh + μ<sub>k</sub>mgs + ½kd² = 0.'},
+   {q:'Check units: inside the square root, mg(h − μ<sub>k</sub>s)/k has units of…',a:'m²',w:['m','J','N'],why:'N·m / (N/m) = m², so d is in metres.'},
+   {q:'The minimum h needed to reach the spring is…',a:'μ<sub>k</sub>s',w:['s','0','2μ<sub>k</sub>s'],why:'d must be real: h − μ<sub>k</sub>s ≥ 0.'}])]});
+
+// ===== Momentum =====
+pxNode('mom',{
+ mcs:[
+  {q:'In a perfectly inelastic collision between two objects of different masses, which is correct?',a:'Their final velocities just after the collision are the same.',w:['Their final momenta are the same.','The total momentum just before is greater than just after.','Kinetic plus potential energy is unchanged.'],why:'They stick together, so they move with one common velocity. Total momentum is conserved; kinetic energy is not.'},
+  {q:'A ball is caught in one case and bounces back in another (arriving with the same speed). The change in momentum is…',a:'larger when it bounces back.',w:['larger when it\'s caught.','the same in both cases.','zero in both cases.'],why:'Caught: Δp = mv. Bouncing back: Δp = mv + mv′ &gt; mv.'},
+  {q:'A red puck moving right hits an identical black puck at rest elastically. Afterwards the black puck moves up and to the right. The red puck…',a:'moves down and to the right.',w:['moves straight to the right.','moves up and to the right.','stops.'],why:'y-momentum starts at 0, so the red puck must move down; in an equal-mass elastic glancing collision the two move off at 90°.'},
+  {q:'Two masses m and M at rest are pushed apart by a spring. The ratio of their speeds v/V is…',a:'M/m',w:['m/M','1','√(M/m)'],why:'Momentum: mv = MV.'},
+  {q:'Two masses m and M at rest are pushed apart by a spring. The ratio of their kinetic energies K<sub>m</sub>/K<sub>M</sub> is…',a:'M/m',w:['m/M','1','(M/m)²'],why:'K = p²/(2m) with equal p, so K ∝ 1/m.'}],
+ bank:[
+  ['Total momentum is conserved in every collision if there\'s no net external force.',true,'Internal forces cancel in pairs.'],
+  ['Kinetic energy is conserved in every collision.',false,'Only in elastic collisions.'],
+  ['In a perfectly inelastic collision the objects move together afterwards.',true,'That\'s what "stick together" means.'],
+  ['A larger impulse means a larger change in momentum.',true,'J = Δp.'],
+  ['The center-of-mass velocity of an isolated system is constant.',true,'Σ F<sub>ext</sub> = 0 ⇒ dp<sub>tot</sub>/dt = 0.'],
+  ['A ball that bounces off a wall has a smaller momentum change than one that sticks.',false,'Bouncing reverses the momentum, so the change is larger.']],
+ sym:[()=>pxSym('Two masses m and M start at rest on a frictionless surface with a compressed spring between them storing energy U. When released, m moves one way at speed v and M the other way at speed V.',[
+   {q:'Momentum conservation gives v/V = …',a:'M/m',w:['m/M','1','√(M/m)'],why:'0 = mv − MV.'},
+   {q:'Energy conservation gives K<sub>m</sub> = …',a:'MU/(m + M)',w:['mU/(m + M)','U/2','U·m/M'],why:'K<sub>m</sub> + K<sub>M</sub> = U and K<sub>m</sub>/K<sub>M</sub> = M/m.'},
+   {q:'And K<sub>M</sub> = …',a:'mU/(m + M)',w:['MU/(m + M)','U/2','U·M/m'],why:'The rest of U.'},
+   {q:'Which mass gets more kinetic energy?',a:'The lighter one.',w:['The heavier one.','They get equal shares.','It depends on U.'],why:'K = p²/(2m) with equal momenta: smaller mass, larger K.'}])]});
+
+// ===== Rotation =====
+const ROT_BANK=[
+ ['A hoop has a larger moment of inertia than a solid disk of the same mass and radius.',true,'All of the hoop\'s mass is at the rim (β = 1 vs ½).'],
+ ['Rolling without slipping means v<sub>CM</sub> = Rω.',true,'The contact point is momentarily at rest.'],
+ ['A solid sphere and a hoop released together roll down an incline; the hoop wins.',false,'The sphere has smaller β, so more energy goes to translation and it wins.'],
+ ['Torque depends on where the force is applied, not just its size.',true,'τ = r × F.'],
+ ['Angular momentum is conserved when the net external torque is zero.',true,'dL/dt = Στ<sub>ext</sub>.'],
+ ['A skater pulling in her arms spins faster because her angular momentum increases.',false,'L stays the same; I decreases, so ω increases.'],
+ ['For an object in equilibrium, the net torque is zero about every point.',true,'If ΣF = 0 and τ = 0 about one point, it\'s zero about all points.']];
+pxNode('rot',{
+ mcs:[
+  {q:'An object with moment of inertia βMR² rolls without slipping down an incline of angle θ. Its acceleration is…',a:'g sin θ / (1 + β)',w:['g sin θ','g sin θ / β','g sin θ (1 + β)'],why:'Energy or torque: Mg sin θ = Ma(1 + β).'},
+  {q:'A disk, a hoop and a solid sphere roll down the same incline from rest. Which reaches the bottom first?',a:'The solid sphere.',w:['The hoop.','The disk.','They tie.'],why:'Smallest β (2/5) gives the largest a = g sin θ/(1 + β).'},
+  {q:'A skater spinning with arms out pulls them in. Her rotational kinetic energy…',a:'increases.',w:['decreases.','stays the same.','becomes zero.'],why:'K = L²/(2I): L fixed, I smaller, so K larger (she does work pulling in).'},
+  {q:'The parallel-axis theorem says I about an axis a distance D from the CM is…',a:'I<sub>CM</sub> + MD²',w:['I<sub>CM</sub> − MD²','MD²','I<sub>CM</sub>·D²'],why:'I<sub>∥</sub> = I<sub>CM</sub> + MD².'}],
+ bank:ROT_BANK});
+pxNode('rotb',{
+ mcs:[
+  {q:'For a rolling object, the fraction of its kinetic energy that is rotational is…',a:'β/(1 + β)',w:['1/(1 + β)','β','½'],why:'K<sub>rot</sub> = ½βMv², K<sub>tot</sub> = ½(1 + β)Mv².'},
+  {q:'A wheel rolls without slipping. The point at the top of the wheel moves at…',a:'2v<sub>CM</sub>',w:['v<sub>CM</sub>','0','√2 v<sub>CM</sub>'],why:'v<sub>top</sub> = v<sub>CM</sub> + Rω = 2v<sub>CM</sub>.'},
+  {q:'A wheel rolls without slipping. The point touching the ground moves at…',a:'0',w:['v<sub>CM</sub>','2v<sub>CM</sub>','Rω'],why:'v = v<sub>CM</sub> − Rω = 0.'}],
+ bank:ROT_BANK});
+
+// Install: replace generators for topics with an exam-style pool (keep units and lab)
+{const P=COURSES.find(c=>c.id==='phys');for(const w of P.worlds)for(const n of w.nodes){const g=PX[n.id];if(g){n.genOld=n.gen;n.gen=()=>{for(let t=0;t<5;t++){const q=g();if(q)return q}return n.genOld()}}}}
+
+// ---------- Exam formats: match each course's real tests ----------
+// From Aryan's Fall 2026 papers:
+//  MATH 135: T/F (no justification), MC with 4 options, proofs.
+//  MATH 137: MC with 4 options incl. "None of the above", T/F, short exact answers.
+//  CHEM 120: every question MC with 5 options A–E, "choose the closest answer", some "Select all that apply".
+//  PHYS 121: MC with 5 options, mostly conceptual, "None of the above is correct", some "Choose all correct answers".
+const EXFMT={
+  m135:{n:4,nota:null,notaRate:0,tf:true},
+  m137:{n:4,nota:'None of the above.',notaRate:.12,tf:true},
+  chem:{n:5,nota:'None of the above',notaRate:.1,tf:false,closest:true,selAll:'Select all that apply.'},
+  phys:{n:5,nota:'None of the above is correct.',notaRate:.12,tf:false,selAll:'Choose all correct answers.'}
+};
+const isTF=q=>q&&q.options&&q.options.length===2&&q.options[0].key==='T';
+const tfText=q=>q.prompt.replace(/<div class="tf">True or false\?<\/div>/,'').trim();
+// Select-all question from statements [{text,true,why}]
+function selAll(stem,stmts,instr){const opts=stmts.map((s,i)=>({key:'s'+i,html:s.text}));const ans=stmts.map((s,i)=>s.true?'s'+i:null).filter(Boolean);
+  return{prompt:`${stem} <b>${instr}</b>`,options:opts,answer:ans.join(','),sel:true,steps:stmts.map(s=>`<b>${s.true?'True':'False'}:</b> ${s.text}${s.why?` ${s.why}`:''}`),hint:'Judge each statement on its own. Any number of them can be true, including none.'}}
+// Gather T/F statements from a generator
+function gatherTF(gen,need){const out=[],seen=new Set();for(let t=0;t<40&&out.length<need;t++){let q;try{q=gen()}catch(e){continue}const parts=q&&q.multi?q.multi:[q];for(const p of parts){if(!isTF(p))continue;const tx=tfText(p);if(seen.has(tx))continue;seen.add(tx);out.push({text:tx,true:p.answer==='T',why:(p.steps[0]||'').replace(/^<b>(True|False)\.<\/b>\s*/,'')})}}return out}
+function tfToMC(q,gen,F,sib){let pool=gatherTF(gen,10);if(pool.length<6&&sib)for(const g2 of shuffle(sib.slice())){if(pool.length>=10)break;for(const x of gatherTF(g2,4))if(!pool.some(y=>y.text===x.text))pool.push(x)}const first={text:tfText(q),true:q.answer==='T',why:(q.steps[0]||'').replace(/^<b>(True|False)\.<\/b>\s*/,'')};
+  const others=pool.filter(s=>s.text!==first.text);
+  // Select all that apply (about 1 in 3, when there's enough material)
+  if(F.selAll&&others.length>=3&&Math.random()<.35){const st=shuffle([first,...others]).slice(0,Math.min(5,1+others.length));return selAll('Which of the following statements are <b>true</b>?',st,F.selAll)}
+  const trues=[first,...others].filter(s=>s.true),falses=[first,...others].filter(s=>!s.true);
+  const askTrue=trues.length&&(falses.length>=F.n-2||Math.random()<.5);
+  const keyS=askTrue?trues[0]:falses[0];const rest=(askTrue?falses:trues).slice(0,F.n-1);
+  if(!keyS||rest.length<2)return null;
+  const wrong=rest.map(s=>s.text);
+  const steps=[`<b>${askTrue?'True':'False'}:</b> ${keyS.text} ${keyS.why}`,...rest.map(s=>`<b>${s.true?'True':'False'}:</b> ${s.text} ${s.why}`)];
+  const out=mc(`Which <b>one</b> of the following statements is <b>${askTrue?'true':'false'}</b>?`,keyS.text,wrong,steps,'Check each statement against the definitions; only one fits.');
+  return out}
+function perturb(html,k){const m=String(html).match(/(−|-)?\d+(\.\d+)?/);if(!m)return null;const neg=!!m[1],dec=m[2]?m[2].length-1:0,v=Number(m[0].replace('−','-'));if(!isFinite(v)||v===0)return null;const f=[2,.5,1.5,10,.1,3,.75,1.25][k%8];const nv=v*f;const t=(dec?nv.toFixed(dec):String(Math.round(nv))).replace('-','−');if(t===m[0].replace('-','−'))return null;return html.slice(0,m.index)+t+html.slice(m.index+m[0].length)}
+function padOpts(q,F){if(!q.options||q.sel||isTF(q)||q.options.length<=2)return q;const have=new Set(q.options.map(o=>o.html));
+  const right=(q.options.find(o=>o.key===q.answer)||{}).html||'';
+  for(let k=0;q.options.length<F.n-(F.nota?1:0)&&k<16;k++){const p=perturb(right,k);if(p&&!have.has(p)){have.add(p);q.options.push({key:'px'+k,html:p})}}
+  if(F.nota&&q.options.length<F.n&&!have.has(F.nota))q.options.push({key:'nota',html:F.nota});
+  return q}
+function notaSwap(q,F){if(!F.nota||q.sel||isTF(q)||q.num||!q.options||q.options.length<3)return q;if(/none of the above/i.test(q.options.map(o=>o.html).join(' ')))return q;if(Math.random()>=F.notaRate)return q;
+  const right=q.options.find(o=>o.key===q.answer);q.options=q.options.filter(o=>o.key!==q.answer);q.options.push({key:'nota',html:F.nota});q.answer='nota';
+  q.steps=[...(q.steps||[]),`The correct answer, <b>${right.html}</b>, isn't listed, so the answer is “${F.nota.replace(/\.$/,'')}”.`];return q}
+function exFormat(q,gen,cid,sib){const F=EXFMT[cid];if(!F||!q)return q;
+  if(q.multi){q.multi=q.multi.map(p=>exFormat1(p,gen,F,cid,sib)||p);return q}
+  return exFormat1(q,gen,F,cid,sib)}
+function exFormat1(q,gen,F,cid,sib){
+  if(isTF(q)&&!F.tf){const c=tfToMC(q,gen,F,sib);if(c)q=c;else return q}
+  if(!F.tf||cid==='chem'||cid==='phys')delete q.num; // no typed answers on CHEM/PHYS tests
+  if(F.closest&&q.options&&q.options.some(o=>/\d/.test(o.html))&&!q.sel&&!/closest/i.test(q.prompt)&&/(calculate|what is|how many|find|determine|mass|moles|volume|energy|wavelength|pressure)/i.test(q.prompt)&&/\d\.\d/.test(q.options.map(o=>o.html).join(' ')))q.prompt+=' Choose the closest answer.';
+  q=padOpts(q,F);q=notaSwap(q,F);
+  if(q.options&&q.options.every(o=>/^Line \d+$/.test(o.html)))q.options.sort((a,b)=>parseInt(a.html.slice(5))-parseInt(b.html.slice(5)));
+  else if(q.options&&!q.sel&&!isTF(q)&&!q.keep){const isN=o=>o.key==='nota'||/^none of the above/i.test(o.html);const n=q.options.filter(o=>!isN(o)),t=q.options.filter(isN);q.options=[...shuffle(n),...t]}
+  return q}
+// ---------- Midterm-style math additions ----------
+function extendNode(cid,nid,gens,rate){const n=COURSES.find(c=>c.id===cid).worlds.flatMap(w=>w.nodes).find(n=>n.id===nid);if(!n)return;const g0=n.gen;n.gen=()=>{if(Math.random()<rate){const q=pick(gens)();if(q)return q}return g0()}}
+// MATH 135 Q11 style: parts of an open sentence about divisibility
+extendNode('m135','impl',[()=>{const v=shuffle(['f','g','h','j','a','b','c','d']).slice(0,4);const [f,g,h,j]=v;const p=R(2,3),q=R(2,4);
+  const H=`${f} | (${p}${g} + ${h})`,C1=`${f} ∤ (${g} − ${q}${j})`,C2=`${f} | (${h} + ${q}${j})`;
+  const S=`If ${H}, then ${C1} or ${C2}.`;const which=pick(['hyp','conc','contra','neg']);
+  const C1n=`${f} | (${g} − ${q}${j})`,C2n=`${f} ∤ (${h} + ${q}${j})`,Hn=`${f} ∤ (${p}${g} + ${h})`;
+  const opts={hyp:[H,`If ${H}`,C1,`${H}, then ${C1}`],conc:[`${C1} or ${C2}`,`${C1} and ${C2}`,`then ${C1} or ${C2}`,H],
+   contra:[`If ${C1n} and ${C2n}, then ${Hn}.`,`If ${C1n} or ${C2n}, then ${Hn}.`,`If ${Hn}, then ${C1n} and ${C2n}.`,`If ${C1} or ${C2}, then ${H}.`],
+   neg:[`${H} and ${C1n} and ${C2n}.`,`If ${H}, then ${C1n} and ${C2n}.`,`${Hn} or ${C1} or ${C2}.`,`${H} and (${C1n} or ${C2n}).`]}[which];
+  const ask={hyp:'What is the hypothesis of S?',conc:'What is the conclusion of S?',contra:'Which is the contrapositive of S?',neg:'Which is the negation of S (without using ¬ or "not")?'}[which];
+  const why={hyp:'The hypothesis is the part after "if", without the word "if" and without quantifiers.',conc:'The conclusion is the part after "then", without the word "then".',contra:'Contrapositive of A ⇒ (B ∨ C) is ¬(B ∨ C) ⇒ ¬A, and ¬(B ∨ C) ≡ ¬B ∧ ¬C (De Morgan).',neg:'¬(A ⇒ B) ≡ A ∧ ¬B. With B = (C₁ ∨ C₂), ¬B = ¬C₁ ∧ ¬C₂. The negation of an implication is not an implication, and S has no quantifiers so neither does its negation.'}[which];
+  return mc(`Let ${v.join(', ')} ∈ ℤ. Consider the open sentence<br>S: ${S}<br>${ask}`,opts[0],opts.slice(1),[why],'Name the parts first: S has the form A ⇒ (B ∨ C).')}],.4);
+// MATH 137 short answers
+extendNode('m137','abs',[()=>{const a=R(-3,3),p=R(1,4),b=R(-3,3),q=R(1,4),c=R(-4,4);const lo=(a-p)-(-b+q)-c,hi=(a+p)-(-b-q)-c;const ans=Math.max(Math.abs(lo),Math.abs(hi));
+  const fx=(v,k)=>k===0?`|${v}|`:k>0?`|${v} − ${k}|`:`|${v} + ${-k}|`;
+  return nq(`Suppose ${fx('x',a)} ≤ ${p} and ${fx('y',-b)} ≤ ${q}. What is the largest possible value of ${fx('x − y',c)}?`,ans,{int:true,nonneg:true,wrong:[p+q,p+q+Math.abs(c),Math.abs(a+b-c),ans-1],steps:[`x ∈ [${a-p}, ${a+p}] and y ∈ [${-b-q}, ${-b+q}].`,`So x − y − ${c} ranges from ${lo} to ${hi}.`,`The largest absolute value is ${ans}.`],hint:'Turn each inequality into an interval, then find the range of x − y.'})}],.35);
+extendNode('m137','liminf',[()=>{const A=R(2,9),B=pick([2,3,4,5,7]);const right=`HA: y = 0 and y = −${A}/${B}; VA: x = ln ${B}`;
+  return mc(`State all horizontal and vertical asymptotes of f(x) = ${A}/(eˣ − ${B}).`,right,[`HA: y = 0; VA: x = ln ${B}`,`HA: y = −${A}/${B}; VA: x = ${B}`,`HA: y = 0 and y = ${A}/${B}; VA: x = ln ${B}`],[`x → ∞: eˣ → ∞, so f → 0. x → −∞: eˣ → 0, so f → ${A}/(0 − ${B}) = −${A}/${B}.`,`Vertical asymptote where eˣ = ${B}: x = ln ${B}.`],'Check x → ∞ and x → −∞ separately; eˣ behaves very differently.')},
+ ()=>{const K=R(2,200);return mc(`Which function satisfies lim<sub>x→∞</sub> f(x) = ∞ and lim<sub>x→∞</sub> f(x)/x² = ${K}?`,`f(x) = ${K}x² + x`,[`f(x) = ${K}x`,`f(x) = x² + ${K}`,`f(x) = ${K}x³`],[`${K}x² + x → ∞, and (${K}x² + x)/x² = ${K} + 1/x → ${K}.`,`${K}x/x² → 0; (x² + ${K})/x² → 1; ${K}x³/x² → ∞.`],'Divide each option by x² and take the limit.')}],.3);
+extendNode('m137','sup',[()=>{const p=R(-2,3),q=p+R(1,4);const r=`a<sub>n</sub> = ${q} − ${q-p}/n`;
+  return mc(`Which sequence is monotonic, has greatest lower bound ${p} and least upper bound ${q}?`,`${r}; its limit is ${q}`,[`a<sub>n</sub> = ${q} + ${q-p}/n; its limit is ${q}`,`a<sub>n</sub> = ${p} + (−1)<sup>n</sup>; its limit is ${p}`,`${r}; its limit is ${p}`],[`${r} starts at a₁ = ${p} and increases toward ${q} without reaching it.`,`So glb = a₁ = ${p}, lub = ${q}, and by MCT it converges to ${q}.`,`a<sub>n</sub> = ${q} + ${q-p}/n has lub ${q+(q-p)}, not ${q}; ${p} + (−1)<sup>n</sup> isn't monotonic and doesn't converge.`],'An increasing sequence starting at the lower bound and approaching the upper bound works.')}],.35);
+
+for(const c of COURSES){const F=EXFMT[c.id];if(!F)continue;for(const w of c.worlds){const raw=w.nodes.map(n=>n.gen);w.nodes.forEach((n,i)=>{const g=raw[i];const sib=raw.filter((_,j)=>j!==i);n.gen=()=>{const prev=OPTN;OPTN=F.n;try{let q=null;for(let t=0;t<6;t++){q=g();if(!q)continue;q=exFormat(q,g,c.id,sib);if(F.tf||!(q.multi||[q]).some(isTF))break}return q}finally{OPTN=prev}}})}}
+
 // ===== Lesson diagrams (inline SVG, themed with CSS variables) =====
 const FIG={};
 (()=>{
@@ -3663,10 +4014,10 @@ function viewToday(){const d=ensureDaily(),h=hist(),L=lvlInfo(S.xp),stk=liveStre
   o+=`<section class="hero" aria-label="Today"><button class="emblem" data-act="level" aria-label="Level ${L.n}, ${Math.min(100,Math.round(d.xp/goal*100))}% of today's goal">${emblem(168,d.xp/goal,{draw:true})}</button>
    <div class="stats"><div class="kv"><div class="k">Daily goal</div><div class="v num">${Math.min(d.xp,goal)}<small> / ${goal} XP</small></div></div><div class="kv"><div class="k">Streak</div><div class="v num">${stk}<small> ${stk===1?'day':'days'}</small></div></div>
    <div class="kv"><div class="k">Level ${L.n}</div><div class="bar gold" style="margin-top:12px"><i style="width:${L.into/L.need*100}%"></i></div><div class="muted num" style="font-size:12px;margin-top:6px">${L.need-L.into} XP to level ${L.n+1}</div></div><div class="kv"><div class="k">Accuracy today</div><div class="v num">${acc==null?'—':acc+'%'}<small>${h.q?` · ${h.q} answered`:''}</small></div></div></div>
-   <div class="cta">${(()=>{const ex=upcoming().find(e=>daysUntil(e.date)<=3&&examReady(e)<80);if(ex){const dl=daysUntil(ex.date);return`<button class="btn btn-primary btn-lg" data-act="start" data-type="exam" data-id="${ex.id}"><span class="cta-t"><span>Prepare for ${esc(ex.title)}</span><small>${dl===0?'Today':dl===1?'Tomorrow':`In ${dl} days`}. Ready: ${examReady(ex)}%</small></span>${ic('chev')}</button>`}return`<button class="btn btn-primary btn-lg" data-act="node" data-id="${rec}"><span class="cta-t"><span>${S.stars[rec]?'Practice':'Continue with'} ${esc(rn.name)}</span><small>${C.name}, ${esc(rn.world.title)}</small></span>${ic('chev')}</button>`})()}${due?`<button class="btn btn-secondary btn-lg" data-act="review">${ic('review')} Review <span class="badge due num">${due}</span></button>`:''}</div></section>`;
+   <div class="cta">${(()=>{const ex=upcoming().find(e=>daysUntil(e.date)<=3&&examReady(e)<80);if(ex){const dl=daysUntil(ex.date);return`<button class="btn btn-primary btn-lg" data-act="start" data-type="exam" data-id="${ex.id}"><span class="cta-t"><span>Prepare for ${esc(ex.title)}</span><small>${dl===0?'Today':dl===1?'Tomorrow':`In ${dl} days`}. Ready: ${examReady(ex)}%</small></span>${ic('chev')}</button><button class="btn btn-ghost btn-sm" data-act="guide" data-id="${ex.id}" style="margin-top:8px">${ic('book',16)} Read the quiz guide first</button>`}return`<button class="btn btn-primary btn-lg" data-act="node" data-id="${rec}"><span class="cta-t"><span>${S.stars[rec]?'Practice':'Continue with'} ${esc(rn.name)}</span><small>${C.name}, ${esc(rn.world.title)}</small></span>${ic('chev')}</button>`})()}${due?`<button class="btn btn-secondary btn-lg" data-act="review">${ic('review')} Review <span class="badge due num">${due}</span></button>`:''}</div></section>`;
   if(S.pendingChests.length){const top=S.pendingChests.slice().sort((a,b)=>'CREL'.indexOf(b)-'CREL'.indexOf(a))[0];o+=`<div class="sec" style="margin-top:16px"><button class="reward pulse" data-act="openpending"><span class="seal" style="--rc:var(--rc-${top})">${ic('seal',20)}</span><span class="main-t"><span class="t" style="font-weight:500">${S.pendingChests.length===1?'A reward is waiting':`${S.pendingChests.length} rewards are waiting`}</span><span class="s muted" style="display:block;font-size:13px">Next: ${RAR[top].n}. Open to add to your library.</span></span>${ic('chev')}</button></div>`}
   const bb=(S.blitz[C.id]||{}).best||0;
-  {const up=upcoming().filter(e=>daysUntil(e.date)<=30);if(up.length)o+=`<div class="sec"><div class="sec-h"><h2 class="t-sec">Coming up</h2><button class="link" data-act="exams">Edit</button></div><div class="group">${up.map(e=>{const dl=daysUntil(e.date),r=examReady(e);return`<button class="row" data-act="start" data-type="exam" data-id="${e.id}"><span class="cd num"><b>${dl}</b><small>${dl===1?'day':'days'}</small></span><span class="main-t"><span class="t">${esc(e.title)}</span><span class="s">${CREG[e.course].name}, ${dl===0?'today':dl===1?'tomorrow':exDate(e.date)}. Ready: ${r}%</span></span><span class="end"><span class="btn btn-secondary btn-sm" aria-hidden="true">Prepare</span></span></button>`}).join('')}</div></div>`}
+  {const up=upcoming().filter(e=>daysUntil(e.date)<=30);if(up.length)o+=`<div class="sec"><div class="sec-h"><h2 class="t-sec">Coming up</h2><button class="link" data-act="exams">Edit</button></div><div class="group">${up.map(e=>{const dl=daysUntil(e.date),r=examReady(e);return`<button class="row" data-act="guide" data-id="${e.id}"><span class="cd num"><b>${dl}</b><small>${dl===1?'day':'days'}</small></span><span class="main-t"><span class="t">${esc(e.title)}</span><span class="s">${CREG[e.course].name}, ${dl===0?'today':dl===1?'tomorrow':exDate(e.date)}. Ready: ${r}%</span></span><span class="end"><span class="btn btn-secondary btn-sm" aria-hidden="true">Quiz guide</span></span></button>`}).join('')}</div></div>`}
   o+=`<div class="sec"><div class="sec-h"><h2 class="t-sec">Practice ${C.name}</h2><button class="link" data-act="nav" data-id="courses">All topics</button></div><div class="group">
    <button class="row" data-act="review"><span class="mark">${ic('review',18)}</span><span class="main-t"><span class="t">Smart review</span><span class="s">${due?`${due} topic${due>1?'s':''} due, weakest first`:'Mixed questions from topics you\'ve started'}</span></span><span class="end">${due?`<span class="badge due num">${due}</span>`:''}${ic('chev',16)}</span></button>
    <button class="row" data-act="sprint"><span class="mark">${ic('bolt',18)}</span><span class="main-t"><span class="t">Sprint</span><span class="s">60 seconds. ${bb?`Your best is ${bb}.`:'Answer as many as you can.'}</span></span><span class="end">${ic('chev',16)}</span></button>
@@ -3771,6 +4122,27 @@ function lAnswer(key){const c=LSN.chk;if(!c||c.picked!=null)return;c.picked=key;
 function lChkNext(){const c=LSN.chk;if(c.i+1<c.qs.length){c.i++;c.picked=null}else c.done=true;renderLesson()}
 function lessonDone(k){if(!S.lessonSeen[k]){S.lessonSeen[k]=dayStr();S.stats.lessons++;ensureDaily().lesson++;addXp(10);checkQuests();checkAch();save()}const play=LSN&&LSN.thenPlay;LSN=null;if(play)startRound('node',k);else go('courses')}
 // Chapter review sheet: every key fact and trap in one place.
+const TESTFMT={
+ m135:['True/false with no justification (divisibility, quantifiers, sums, sets).','Multiple choice with 4 options (A–D).','Truth tables, and the hypothesis, conclusion, contrapositive and negation of an open sentence.','Written proofs: cases, divisibility, induction, set equality, existence, prove or disprove. Justify every step.'],
+ m137:['Short answers: an exact value or an example (full marks for a correct answer).','Long answers: show all work; exact answers, no decimals.','Multiple choice with 4 options, often including "None of the above".','True/false on facts about sequences, limits and continuity.'],
+ chem:['Every question is multiple choice with 5 options (A–E).','Calculations say "choose the closest answer". Bring a scientific calculator.','About 1 in 5 questions is "Select all that apply" (any number can be true, even none).','You get a data sheet: periodic table, constants and key equations.'],
+ phys:['Multiple choice with 5 options; the last is usually "None of the above is correct".','Mostly conceptual: signs of energy changes, work–energy, momentum, directions of forces.','Some questions are "Choose all correct answers"; you need every one for any credit.','Long problems are solved in symbols: free-body diagram, equations, solve, then check units and special cases. Box your answers.']};
+function examGuide(id){const e=(S.exams||[]).find(x=>x.id===id);if(!e)return go('today');LSN=null;const C=CREG[e.course];document.documentElement.style.setProperty('--course',`var(--c-${C.id})`);
+  const ws=e.worlds.map(w=>WREG[w]).filter(Boolean);const nodes=ws.flatMap(w=>w.nodes).sort((a,b)=>mastery(a.key)-mastery(b.key));const dl=daysUntil(e.date),r=examReady(e);
+  const when=dl===0?'today':dl===1?'tomorrow':`in ${dl} days (${exDate(e.date)})`;
+  focusView(`<div class="qtop"><div class="qtop-in"><button class="icon-btn" data-act="home" aria-label="Back to Today">${ic('back')}</button><span class="t-label" style="flex:1">Quiz guide</span><button class="btn btn-ghost btn-sm lskip" data-act="print">Print</button></div></div>
+   <article class="read sheetv guide" style="--course:var(--c-${C.id})"><div class="lede">${C.name}</div><h1 style="display:block">${esc(e.title)}</h1><p class="lsub">It's ${when}. You're ${r}% ready.</p>
+   <div class="cta" style="margin:16px 0 8px"><button class="btn btn-primary btn-lg" data-act="start" data-type="exam" data-id="${e.id}"><span class="cta-t"><span>Start test prep</span><small>10 questions from these chapters, weakest topics first</small></span>${ic('chev')}</button></div>
+   <section class="rs"><h2 class="rs-h"><span class="rs-n">What's on it</span></h2><ul class="gl">${ws.map(w=>`<li>${esc(w.chap?w.chap+'. ':'')}${esc(w.title)}: ${w.nodes.map(n=>esc(n.name)).join(', ')}</li>`).join('')}</ul></section>
+   ${TESTFMT[C.id]?`<section class="rs"><h2 class="rs-h"><span class="rs-n">What the questions look like</span></h2><ul class="gl">${TESTFMT[C.id].map(t=>`<li>${t}</li>`).join('')}</ul><p class="lsub" style="margin-top:6px">Based on your own ${C.name} tests this term. Practice in Margin uses the same formats.</p></section>`:''}
+   <section class="rs"><h2 class="rs-h"><span class="rs-n">Study in this order</span></h2><p class="lsub">Weakest first. Each topic has the idea, the key facts, one worked example and the traps that cost marks.</p></section>
+   ${nodes.map((n,i)=>{const x=lxOf(n.key),m=mastery(n.key),ex=(x.ex||[])[0];return`<section class="rs"><h2 class="rs-h">${markEl(n.key)}<span class="rs-n">${i+1}. ${n.name}</span><span class="gm num">${m}%</span></h2>
+     ${(x.idea||[])[0]?`<p>${x.idea[0]}</p>`:''}${FIG[n.key]?`<figure class="fig sm">${FIG[n.key].svg}</figure>`:''}
+     ${(x.keys||[]).length?`<div class="kfs">${x.keys.map(q=>lkey(q[0],q[1])).join('')}</div>`:''}
+     ${ex?`<details class="gex"><summary>Worked example: ${ex.q}</summary><ol class="steps">${(ex.s||[]).map(t=>`<li>${t}</li>`).join('')}</ol>${ex.a?`<p><b>Answer:</b> ${ex.a}</p>`:''}</details>`:''}
+     ${(x.traps||[]).length?`<ul class="traps sm">${x.traps.map(t=>`<li><span class="tx">${ic('x',12,2.4)}</span><span>${t}</span></li>`).join('')}</ul>`:''}
+     <div class="gbtns"><button class="btn btn-ghost btn-sm" data-act="lesson" data-id="${n.key}">Full lesson</button><button class="btn btn-secondary btn-sm" data-act="start" data-type="node" data-id="${n.key}">Practise this</button></div></section>`}).join('')}
+   <div class="cta" style="margin:24px 0"><button class="btn btn-primary btn-lg" data-act="start" data-type="exam" data-id="${e.id}"><span class="cta-t"><span>Start test prep</span><small>${C.name}, ${esc(e.title)}</small></span>${ic('chev')}</button></div></article>`)}
 function reviewSheet(wk){LSN=null;const w=WREG[wk],C=w.course;document.documentElement.style.setProperty('--course',`var(--c-${C.id})`);
   focusView(`<div class="qtop"><div class="qtop-in"><button class="icon-btn" data-act="home2" aria-label="Back to courses">${ic('back')}</button><span class="t-label" style="flex:1">Review sheet</span><button class="btn btn-ghost btn-sm lskip" data-act="print">Print</button></div></div>
    <article class="read sheetv" style="--course:var(--c-${C.id})"><div class="lede">${C.name}</div><h1 style="display:block">${esc(w.chap?w.chap+'. ':'')}${esc(w.title)}</h1><p class="lsub">The key facts and common traps for every topic in this chapter.</p>
@@ -3797,8 +4169,9 @@ function renderQ(){const q=RD.queue[RD.i];RD.locked=false;RD.hinted=false;const 
   let h=`<div class="qtop"><div class="qtop-in"><button class="icon-btn" data-act="quit" aria-label="End round">${ic('x')}</button><div class="bar" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div><span class="meta num">${Math.min(RD.i+1,RD.base)} of ${RD.base}</span>${right}<button class="icon-btn" data-act="togglefocus" aria-label="Focus mode" aria-pressed="${!!S.focus}" title="Focus mode (F)" style="${S.focus?'color:var(--ink);background:var(--surface-2)':''}">${ic('focus')}</button></div></div>
    <div class="qwrap" style="--course:var(--c-${C.id})"><div class="qmeta">${markEl(q.nk)}<span><span style="color:var(--ink);font-weight:500">${n.name}</span><br><span>${roundLabel()}${RD.type!=='node'?`, ${C.name}`:''}</span></span>${tag?`<span class="badge tag">${tag}</span>`:''}</div><div class="prompt">${q.prompt}</div>`;
   if(typed)h+=`<div class="typed"><span>${q.num.pre||''}</span><input id="tin" inputmode="decimal" autocomplete="off" aria-label="Your answer" placeholder="Type your answer"><span>${q.num.post||''}</span></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="t-label">Fractions like 3/4 and forms like 2.1e-5 work</span><button class="btn btn-primary" data-act="typed">Check <span class="kbd" style="background:transparent;color:inherit;box-shadow:inset 0 0 0 1px rgba(127,127,127,.5)">↵</span></button></div>`;
+  else if(q.sel)h+=`<div class="opts sel" role="group" aria-label="Select every true answer">${q.options.map((o,i)=>`<button class="opt" data-act="selopt" data-k="${o.key}" aria-pressed="false">${i<9?`<span class="kbd k">${i+1}</span>`:''}<span class="box" aria-hidden="true"></span><span>${o.html}</span><span class="ic">${ic('check',18,2)}</span></button>`).join('')}</div><div class="selbar"><span class="t-label" id="selcount">None selected. That can be the answer.</span><button class="btn btn-primary" data-act="selcheck">Check <span class="kbd" style="background:transparent;color:inherit;box-shadow:inset 0 0 0 1px rgba(127,127,127,.5)">↵</span></button></div>`;
   else h+=`<div class="opts ${q.options.length===2?'two':''} ${q.grid?'grid':''}" role="group" aria-label="Answers">${q.options.map((o,i)=>`<button class="opt" data-act="opt" data-k="${o.key}">${i<9?`<span class="kbd k">${i+1}</span>`:''}<span>${o.html}</span><span class="ic">${ic('check',18,2)}</span></button>`).join('')}</div>`;
-  const can50=!typed&&q.options.length>=4;
+  const can50=!typed&&!q.sel&&q.options.length>=4;
   h+=`<div class="tools" ${S.focus?'style="opacity:.6"':''}><button class="tool" data-act="hint" id="hintbtn">${ic('hint',16)} Hint <span class="c">${RD.freeHint?'free':'3 gems'}</span></button><button class="tool" data-act="fifty" ${S.inv.fifty&&can50?'':'disabled'}>${ic('half',16)} Remove two <span class="c num">${S.inv.fifty}</span></button><button class="tool ${RD.shield?'on':''}" data-act="shield" ${S.inv.shield||RD.shield?'':'disabled'} aria-pressed="${RD.shield}">${ic('shield',16)} Shield <span class="c num">${RD.shield?'on':S.inv.shield}</span></button><button class="tool" data-act="skip" ${S.inv.skip?'':'disabled'}>${ic('skip',16)} Skip <span class="c num">${S.inv.skip}</span></button></div><div id="hintbox"></div></div>`;
   focusView(h);if(typed){const t=$('#tin');setTimeout(()=>t.focus(),60);t.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submitTyped()}})}}
 function useHint(){if(RD.locked||RD.hinted)return;const q=RD.queue[RD.i];if(!RD.freeHint){if(S.gems<3){toast('Not enough gems for a hint');return}S.gems-=3}else RD.freeHint=false;RD.hinted=true;$('#hintbox').innerHTML=fixM(`<div class="hintbox">${q.hint||'Which definition or theorem does this question depend on?'}</div>`);$('#hintbtn').disabled=true;save()}
@@ -3808,17 +4181,21 @@ function usePup(kind){if(!RD||RD.locked)return;const q=RD.queue[RD.i];
   else if(kind==='skip'){if(!S.inv.skip)return;S.inv.skip--;RD.queue[RD.i]=single(q.nk,{retry:q.retry});save();renderQ()}}
 function parseNum(s){s=s.trim().replace(/−/g,'-').replace(/\s/g,'').replace(/,/g,'');if(/^-?\d+(\.\d+)?\/-?\d+(\.\d+)?$/.test(s)){const[a,b]=s.split('/').map(Number);return b?a/b:NaN}if(/^-?(\d+\.?\d*|\.\d+)(e-?\d+)?$/i.test(s))return Number(s);const m=s.match(/^(-?\d+\.?\d*)[x×*]10\^?(-?\d+)$/);if(m)return Number(m[1])*10**Number(m[2]);return NaN}
 function submitTyped(){if(RD.locked)return;const q=RD.queue[RD.i];const raw=$('#tin').value;const v=parseNum(raw);if(!isFinite(v)){toast('Enter a number, for example 12, −3.5, 3/4 or 2.1e-5');return}const N=q.num;let ok;if(N.mod)ok=Number.isInteger(v)&&mod(v,N.mod)===mod(N.value,N.mod);else if(N.int)ok=Math.abs(v-N.value)<1e-9;else{const tol=Math.max(N.abs||0,Math.abs(N.value)*(N.tol||.02),1e-12);ok=Math.abs(v-N.value)<=tol}RD.typedVal=raw;answer(ok?q.answer:'__wrong__',true)}
-function addMistake(q){if(S.mistakes.some(m=>m.prompt===q.prompt))return;S.mistakes.push({mid:Date.now()+'-'+Math.floor(Math.random()*1e6),nk:q.nk,prompt:q.prompt,options:q.options,answer:q.answer,steps:q.steps,hint:q.hint,num:q.num||null,grid:q.grid||false});if(S.mistakes.length>40)S.mistakes.shift()}
+function addMistake(q){if(S.mistakes.some(m=>m.prompt===q.prompt))return;S.mistakes.push({mid:Date.now()+'-'+Math.floor(Math.random()*1e6),nk:q.nk,prompt:q.prompt,options:q.options,answer:q.answer,steps:q.steps,hint:q.hint,num:q.num||null,grid:q.grid||false,sel:!!q.sel});if(S.mistakes.length>40)S.mistakes.shift()}
 function srsPush(k,ok){const s=srs(k);s.h.push(ok?1:0);if(s.h.length>12)s.h.shift();if(RD&&RD.touched)(RD.touched[k]=RD.touched[k]||[]).push(ok?1:0);const h=hist();h.q++;if(ok)h.c++}
-function answer(key,typed=false){if(RD.locked)return;RD.locked=true;const q=RD.queue[RD.i];const ok=key===q.answer;const d=ensureDaily();const C=REG[q.nk].course;
-  document.querySelectorAll('.opt').forEach(o=>{o.disabled=true;if(o.dataset.k===q.answer)o.classList.add('right');else if(o.dataset.k===key){o.classList.add('wrong');o.querySelector('.ic').innerHTML=ic('x',18,2)}else o.classList.add('dim')});
+const selKey=k=>String(k||'').split(',').filter(Boolean).sort().join(',');
+function selToggle(b){if(RD.locked)return;const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);b.classList.toggle('on',on);const n=document.querySelectorAll('.opt.on').length;const c=$('#selcount');if(c)c.textContent=n?`${n} selected`:'None selected. That can be the answer.'}
+function selCheck(){if(RD.locked)return;answer(selKey([...document.querySelectorAll('.opt.on')].map(o=>o.dataset.k).join(',')))}
+function answer(key,typed=false){if(RD.locked)return;RD.locked=true;const q=RD.queue[RD.i];const ok=q.sel?selKey(key)===selKey(q.answer):key===q.answer;const d=ensureDaily();const C=REG[q.nk].course;
+  if(q.sel){const want=new Set(selKey(q.answer).split(',')),got=new Set(selKey(key).split(','));document.querySelectorAll('.opt').forEach(o=>{o.disabled=true;const k=o.dataset.k;if(want.has(k)){o.classList.add('right');if(!got.has(k))o.classList.add('missed')}else if(got.has(k)){o.classList.add('wrong');o.querySelector('.ic').innerHTML=ic('x',18,2)}else o.classList.add('dim')});const sb=document.querySelector('[data-act=selcheck]');if(sb)sb.disabled=true}
+  else document.querySelectorAll('.opt').forEach(o=>{o.disabled=true;if(o.dataset.k===q.answer)o.classList.add('right');else if(o.dataset.k===key){o.classList.add('wrong');o.querySelector('.ic').innerHTML=ic('x',18,2)}else o.classList.add('dim')});
   S.stats.ans++;srsPush(q.nk,ok);let gained=0,notes=[],requeued=false,shielded=false;
   if(ok){if(!q.retry)RD.correct++;RD.combo++;RD.best=Math.max(RD.best,RD.combo);S.stats.cor++;S.stats.bestCombo=Math.max(S.stats.bestCombo,RD.combo);d.maxCombo=Math.max(d.maxCombo,RD.combo);d.c[C.id]=(d.c[C.id]||0)+1;
     const mult=RD.combo>=10?3:RD.combo>=6?2:RD.combo>=3?1.5:1;let base=q.retry?6:10;if(RD.boss)base=12;if(typed){base*=1.5;S.stats.hardCor++;d.hard++;notes.push('typed ×1.5')}if(RD.hinted){base*=.5;notes.push('hint used')}let x=Math.round(base*mult);if(mult>1)notes.push(`${RD.combo} in a row ×${mult}`);
     if(Math.random()<.12){x*=2;S.stats.crits++;notes.push('bonus ×2')}gained=x;RD.xp+=x;addXp(x);if(q.fromMistake){S.mistakes=S.mistakes.filter(m=>m.mid!==q.mid);S.stats.fixed++;d.fixed++}if(RD.boss)RD.hp--;sfx('good')}
   else{if(RD.shield){RD.shield=false;shielded=true;notes.push('Shield used: your run and lives are safe')}else RD.combo=0;if(!q.fromMistake)addMistake(q);if(RD.boss&&!shielded)RD.hearts--;else if(RD.type==='node'&&RD.retries<2){RD.retries++;RD.queue.push(single(q.nk,{retry:true}));requeued=true}sfx('bad')}
   showFeedback(ok,q,gained,notes,requeued,typed);checkQuests();checkAch();save()}
-function showFeedback(ok,q,gained,notes,requeued,typed){const sh=$('#sheet');sh.className='sheet show '+(ok?'good':'bad');let ansHtml=(q.options.find(o=>o.key===q.answer)||{}).html||q.answer;if(q.num&&typed)ansHtml=q.num.show||`${q.num.pre||''}${q.num.value}${q.num.post||''}`;
+function showFeedback(ok,q,gained,notes,requeued,typed){const sh=$('#sheet');sh.className='sheet show '+(ok?'good':'bad');let ansHtml=q.sel?(selKey(q.answer)?q.options.filter(o=>selKey(q.answer).split(',').includes(o.key)).map(o=>`<li>${o.html}</li>`).join(''):'None of them'):(q.options.find(o=>o.key===q.answer)||{}).html||q.answer;if(q.sel&&selKey(q.answer))ansHtml=`<ul class="selans">${ansHtml}</ul>`;if(q.num&&typed)ansHtml=q.num.show||`${q.num.pre||''}${q.num.value}${q.num.post||''}`;
   const steps=`<ol class="steps">${q.steps.filter(Boolean).map(s=>`<li>${s}</li>`).join('')}</ol>`;const last=RD.i+1>=RD.queue.length||(RD.boss&&(RD.hp<=0||RD.hearts<=0));
   $('#sheetIn').innerHTML=fixM(`<div class="fb"><span class="ic">${ic(ok?'check':'x',15,2.4)}</span><span>${ok?'Correct':'Not quite'}</span>${ok&&!S.focus?`<span class="xp num">+${gained} XP</span>`:''}</div>${notes.length&&!S.focus?`<div class="fb-note">${notes.join(' · ')}</div>`:''}
    ${!ok?`${typed?`<div class="ans">You entered <b>${esc(RD.typedVal)}</b>.</div>`:''}<div class="ans">Answer: <b>${ansHtml}</b></div>${steps}${LX[q.nk]?`<details class="kfd"><summary>Key facts for ${REG[q.nk].name}</summary><div class="kfs">${LX[q.nk].keys.map(z=>lkey(z[0],z[1])).join('')}</div></details>`:''}`:`<div id="sol" hidden>${steps}</div>`}
@@ -3877,7 +4254,7 @@ let BZ=null;
 function stopSprint(){if(BZ&&BZ.timer)clearInterval(BZ.timer);BZ=null}
 function startSprint(){closeModal(true);ac();stopSprint();RD=null;const C=CREG[S.course];let pool=allNodes(C.id).filter(n=>(S.stars[n.key]||0)>0||(S.srs[n.key]&&S.srs[n.key].h.length));if(pool.length<3)pool=allNodes(C.id);
   const best=S.blitz[C.id]||{best:0,times:[]};BZ={c:C.id,pool:pool.map(n=>n.key),score:0,t0:Date.now(),end:Date.now()+60000,times:[],best,q:null,lock:false,wrong:0};BZ.timer=setInterval(sTick,200);sNext()}
-function sNext(){BZ.q=single(pick(BZ.pool));BZ.lock=false;sRender()}
+function sNext(){let q,t=0;do{q=single(pick(BZ.pool))}while(q.sel&&t++<8);BZ.q=q;BZ.lock=false;sRender()}
 function ghostAt(){return BZ.best.times?BZ.best.times.filter(t=>t<=Date.now()-BZ.t0).length:0}
 function sRender(){const q=BZ.q,n=REG[q.nk];
   focusView(`<div class="qtop"><div class="qtop-in"><button class="icon-btn" data-act="home" aria-label="End sprint">${ic('x')}</button><div class="bar gold"><i id="sbar" style="width:${Math.max(0,(BZ.end-Date.now())/600)}%;transition:width .2s linear"></i></div><span class="meta num" id="stime">${Math.ceil(Math.max(0,BZ.end-Date.now())/1000)} s</span></div></div>
@@ -3966,8 +4343,8 @@ let SQ='';
 function searchHits(q){q=q.trim().toLowerCase();if(q.length<2)return[];const out=[];for(const c of COURSES)for(const w of c.worlds)for(const n of w.nodes){const x=LX[n.key]||{};const hay=[n.name,w.title,c.name,...(x.keys||[]).map(k=>k[0]+' '+k[1])].join(' ').toLowerCase();const inName=(n.name+' '+w.title).toLowerCase().includes(q);if(inName||hay.includes(q))out.push({n,w,c,score:inName?0:1})}return out.sort((a,b)=>a.score-b.score).slice(0,20)}
 function renderSearch(){const box=$('#srch');if(!box)return;const hits=searchHits(SQ);box.innerHTML=SQ.trim().length<2?'':hits.length?`<div class="group">${hits.map(({n,w,c})=>`<button class="row" data-act="node" data-id="${n.key}" style="--course:var(--c-${c.id})">${markEl(n.key)}<span class="main-t"><span class="t">${n.name}</span><span class="s">${c.name}, ${esc(w.title)}</span></span><span class="end">${ic('chev',16)}</span></button>`).join('')}</div>`:`<p class="help" style="padding:8px 2px">No topics match “${esc(SQ.trim())}”. Try a term like gcd, limit or VSEPR.</p>`;document.querySelector('.chapters')&&(document.querySelector('.chapters').hidden=SQ.trim().length>=2)}
 document.addEventListener('input',e=>{if(e.target.id==='tsearch'){SQ=e.target.value;renderSearch()}if(e.target.closest&&e.target.closest('.exform')){const x=$('#exerr');if(x)x.textContent=''}});
-const APP_VER='2026.11.24';
-const WHATS_NEW=['Today: when a test is 3 days away or less, the main button prepares you for it','The Continue button stays on screen after you answer, even with a long solution','More question types for RSA, linear congruences, Diophantine equations, geometric series, inclines, pulleys and circular motion','MATH 135: new Split the Modulus topic (in Chinese Remainder Theorem) with a lesson and practice on x² ≡ a and other nonlinear congruences','Ask: clearer messages when OpenRouter blocks a free model because of your privacy settings','Ask works with an API key from any provider (Anthropic, OpenAI, Gemini, OpenRouter or OpenAI-compatible): tap API key in Ask. You can also attach photos, PDFs and text files to a question','Ask: an AI tutor that answers from your own notes first. Import notes in Ask, Your notes. Tap Explain after any answer','Proof Lab in MATH 135, plus proof questions mixed into practice','Upcoming tests: add quiz and exam dates in Settings to get a countdown and focused prep','Diagrams in 14 lessons, and more question types across 11 topics','New CHEM topic: Bond Strength, plus questions on the uncertainty principle, lattice energy and real gases','Search in Courses, a Flag button on questions, and a daily calendar reminder','Bigger touch targets and clearer text on phones'];
+const APP_VER='2026.11.24.2';
+const WHATS_NEW=['Practice now matches your real tests: CHEM and PHYS questions have 5 options, MATH has 4, and there are Select all that apply questions','PHYS 121 rewritten in exam style: concept questions and step-by-step problems in symbols','Quiz guide: tap a test under Coming up to see what\'s on it, what the questions look like, and the key facts, examples and traps for each topic, weakest first','Today: when a test is 3 days away or less, the main button prepares you for it','The Continue button stays on screen after you answer, even with a long solution','More question types for RSA, linear congruences, Diophantine equations, geometric series, inclines, pulleys and circular motion','MATH 135: new Split the Modulus topic (in Chinese Remainder Theorem) with a lesson and practice on x² ≡ a and other nonlinear congruences','Ask: clearer messages when OpenRouter blocks a free model because of your privacy settings','Ask works with an API key from any provider (Anthropic, OpenAI, Gemini, OpenRouter or OpenAI-compatible): tap API key in Ask. You can also attach photos, PDFs and text files to a question','Ask: an AI tutor that answers from your own notes first. Import notes in Ask, Your notes. Tap Explain after any answer','Proof Lab in MATH 135, plus proof questions mixed into practice','Upcoming tests: add quiz and exam dates in Settings to get a countdown and focused prep','Diagrams in 14 lessons, and more question types across 11 topics','New CHEM topic: Bond Strength, plus questions on the uncertainty principle, lattice energy and real gases','Search in Courses, a Flag button on questions, and a daily calendar reminder','Bigger touch targets and clearer text on phones'];
 function whatsNew(){modal(`<div class="box-h"><h2 class="t-title">What's new</h2><button class="icon-btn close" data-act="close" aria-label="Close">${ic('x')}</button></div><ul class="newlist">${WHATS_NEW.map(t=>`<li>${t}</li>`).join('')}</ul><button class="btn btn-primary btn-block" data-act="close">Got it</button>`)}
 
 function askModal(k,q,picked,autoQ){TUT.ctx={k,q,picked};TUT.msgs=[];TUT.atts=[];modal(`<div class="box-h"><h2 class="t-title">Ask</h2><button class="icon-btn close" data-act="close" aria-label="Close">${ic('x')}</button></div>${viewAsk().replace('<div class="ask"><div class="ask-h">','<div class="ask inmodal"><div class="ask-h" hidden>')}`,true);showRoute();if(autoQ)setTimeout(()=>askSend(autoQ),50);else setTimeout(()=>{const t=$('#askin');if(t)t.focus()},60)}
@@ -4005,7 +4382,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
   case'final':if(!finalUnlocked(CREG[S.course])){toast('Pass three chapter tests to unlock the course exam','lock');return}startRound('final');break;
   case'review':startRound('review');break;case'sprint':startSprint();break;case'fix':startRound('fix');break;
   case'go':{const t=b.dataset.t;if(t==='node'||t==='wboss')startRound(t,id);else if(['final','review','fix'].includes(t))startRound(t);else go('today');break}
-  case'close':closeModal();break;case'opt':answer(b.dataset.k);break;case'sopt':sAnswer(b.dataset.k);break;case'typed':submitTyped();break;case'cont':next();break;case'hint':useHint();break;
+  case'close':closeModal();break;case'opt':answer(b.dataset.k);break;case'selopt':selToggle(b);break;case'selcheck':selCheck();break;case'sopt':sAnswer(b.dataset.k);break;case'typed':submitTyped();break;case'cont':next();break;case'hint':useHint();break;
   case'fifty':case'shield':case'skip':usePup(a);break;case'sol':{const s=$('#sol');if(s){s.hidden=false;b.remove()}break}
   case'togglefocus':S.focus=!S.focus;save();if(RD&&!RD.locked)renderQ();toast(S.focus?'Focus mode on':'Focus mode off','focus');break;
   case'quit':modal(`<div class="box-h"><h2 class="t-title">End this round?</h2></div><p style="margin:0;color:var(--ink-2)">Answers so far still count toward mastery, but you won't get a result or reward for this round.</p><div class="stack" style="flex-direction:row;justify-content:flex-end"><button class="btn btn-secondary" data-act="close">Keep going</button><button class="btn btn-primary" data-act="home">End round</button></div>`);break;
@@ -4017,7 +4394,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
   case'buy':{const P={chestR:30,freeze:20,fifty:5,shield:8,skip:4}[id];if(S.gems<P)return;S.gems-=P;if(id==='freeze'){if(S.freezes>=2){S.gems+=P;return}S.freezes++}else if(id==='chestR'){S.pendingChests.push('R');save();openPending();return}else S.inv[id]++;save();go('library');toast('Added');break}
   case'level':levelModal();break;case'settings':settings();break;case'goal':S.goal=+id;save();if(VIEW.main)go(VIEW.name);settings();break;
   case'tset':S[id]=!S[id];save();settings();break;
-  case'reset':settings(true);break;case'xfer':transfer(id);break;case'xcopy':xCopy();break;case'remind':addReminder();break;case'exams':EXF=null;exams();break;case'flag':flagQ();break;case'explain':{const q=RD&&RD.queue[RD.i];if(q){const w=document.querySelector('.opt.wrong');const pk=w?w.dataset.k:null;askModal(q.nk,q,pk,pk&&pk!==q.answer?'Explain this question step by step: why is the correct answer right, and where did my answer go wrong?':'Explain this question step by step, and why the correct answer is right.')}break}case'lessonask':askModal(id,null,null,null);break;case'notes':notesModal();break;case'notedel':deleteDoc(id);break;case'askclear':TUT.ctx=null;if(VIEW.main&&VIEW.name==='ask')go('ask');else{const c=document.querySelector('.ctxchip');if(c)c.remove()}break;case'asksug':askSend(b.textContent);break;case'aisettings':aiSettings();break;case'aikeysave':aiKeySave();break;case'aikeydel':aiKeyDel();break;case'aitest':aiTest();break;case'keyshow':keyShow(b);break;case'keypaste':keyPaste();break;case'attdel':attDel(id);break;case'attnote':attNote(id);break;case'flags':flags();break;case'flagcopy':xCopy();break;case'flagclear':S.flags=[];save();flags();break;case'whatsnew':whatsNew();break;case'excourse':exFormRead();EXF.course=id;EXF.worlds=[];exams();break;case'exadd':exAdd();break;case'exdel':S.exams=(S.exams||[]).filter(e=>e.id!==id);save();exams();break;case'xshare':navigator.share({title:'Margin progress',text:encState()}).then(()=>{S.lastBackup=Date.now();save();toast('Progress code shared','check')}).catch(()=>{});break;case'xcheck':{try{XFER=decState($('#xin').value);transfer('confirm')}catch(e){transfer('in',e.message.includes('Margin')||e.message.includes('code')?e.message:'That code couldn’t be read. Copy the whole thing and try again.')}break}case'ximport':{const keep=S.muted;S=merge(XFER);S.v4seen=true;XFER=null;save();applyAppearance();closeModal(true);go('today');toast('Progress imported','check');break}case'reset2':{const keep=S.muted;S=DEF();S.muted=keep;S.v4seen=true;save();closeModal(true);go('today');break}
+  case'reset':settings(true);break;case'xfer':transfer(id);break;case'xcopy':xCopy();break;case'remind':addReminder();break;case'exams':EXF=null;exams();break;case'guide':closeModal(true);examGuide(id);break;case'flag':flagQ();break;case'explain':{const q=RD&&RD.queue[RD.i];if(q){const w=document.querySelector('.opt.wrong');const pk=w?w.dataset.k:null;askModal(q.nk,q,pk,pk&&pk!==q.answer?'Explain this question step by step: why is the correct answer right, and where did my answer go wrong?':'Explain this question step by step, and why the correct answer is right.')}break}case'lessonask':askModal(id,null,null,null);break;case'notes':notesModal();break;case'notedel':deleteDoc(id);break;case'askclear':TUT.ctx=null;if(VIEW.main&&VIEW.name==='ask')go('ask');else{const c=document.querySelector('.ctxchip');if(c)c.remove()}break;case'asksug':askSend(b.textContent);break;case'aisettings':aiSettings();break;case'aikeysave':aiKeySave();break;case'aikeydel':aiKeyDel();break;case'aitest':aiTest();break;case'keyshow':keyShow(b);break;case'keypaste':keyPaste();break;case'attdel':attDel(id);break;case'attnote':attNote(id);break;case'flags':flags();break;case'flagcopy':xCopy();break;case'flagclear':S.flags=[];save();flags();break;case'whatsnew':whatsNew();break;case'excourse':exFormRead();EXF.course=id;EXF.worlds=[];exams();break;case'exadd':exAdd();break;case'exdel':S.exams=(S.exams||[]).filter(e=>e.id!==id);save();exams();break;case'xshare':navigator.share({title:'Margin progress',text:encState()}).then(()=>{S.lastBackup=Date.now();save();toast('Progress code shared','check')}).catch(()=>{});break;case'xcheck':{try{XFER=decState($('#xin').value);transfer('confirm')}catch(e){transfer('in',e.message.includes('Margin')||e.message.includes('code')?e.message:'That code couldn’t be read. Copy the whole thing and try again.')}break}case'ximport':{const keep=S.muted;S=merge(XFER);S.v4seen=true;XFER=null;save();applyAppearance();closeModal(true);go('today');toast('Progress imported','check');break}case'reset2':{const keep=S.muted;S=DEF();S.muted=keep;S.v4seen=true;save();closeModal(true);go('today');break}
   case'welcome':S.v4seen=true;save();closeModal(true);break;
   }});
 document.addEventListener('keydown',e=>{const mOpen=$('#modal').classList.contains('show');
@@ -4030,8 +4407,8 @@ document.addEventListener('keydown',e=>{const mOpen=$('#modal').classList.contai
     if(e.key==='ArrowLeft'){if(LSN.page>0){e.preventDefault();lgo(LSN.page-1)}return}
     if(e.key==='Enter'&&!onBtn){e.preventDefault();if(pg.id==='ex'&&document.querySelector('[data-act=exstep]')){exStep();return}const b=$('#lnext');if(b)b.click();return}
     return}
-  if(RD&&!RD.done&&!RD.locked){if(e.key==='h'||e.key==='H'){useHint();return}if(e.key==='f'||e.key==='F'){document.querySelector('[data-act=togglefocus]')?.click();return}}
-  const k=/^[1-9]$/.test(e.key)?+e.key:{a:1,b:2,c:3,d:4}[e.key.toLowerCase()]||0;if(k&&((RD&&!RD.done&&!RD.locked)||BZ)){const sel=BZ?'[data-act=sopt]':'[data-act=opt]';const o=[...document.querySelectorAll(sel)][k-1];if(o&&!o.disabled)o.click()}});
+  if(RD&&!RD.done&&!RD.locked){if(e.key==='Enter'&&RD.queue[RD.i]&&RD.queue[RD.i].sel){e.preventDefault();selCheck();return}if(e.key==='h'||e.key==='H'){useHint();return}if(e.key==='f'||e.key==='F'){document.querySelector('[data-act=togglefocus]')?.click();return}}
+  const k=/^[1-9]$/.test(e.key)?+e.key:{a:1,b:2,c:3,d:4}[e.key.toLowerCase()]||0;if(k&&((RD&&!RD.done&&!RD.locked)||BZ)){const sel=BZ?'[data-act=sopt]':'[data-act=opt],[data-act=selopt]';const o=[...document.querySelectorAll(sel)][k-1];if(o&&!o.disabled)o.click()}});
 
 // ================= BOOT =================
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}

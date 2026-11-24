@@ -23,9 +23,10 @@ function frt(n,d){const f=frac(n,d);if(f.d===1)return minus(f.n);return minus(`$
 // Multiple choice. correct + wrong are HTML strings; dedupe by text.
 const negFix=t=>String(t).replace(/(^|[\s(=,;\[])-(?=\d)/g,'$1−');
 const anFix=p=>negFix(String(p).replace(/(^|[.>] )A (?=(8\d*|11|18)(\.\d+)? )/g,'$1An '));
+let OPTN=4; // options per question, set per course by examfmt.js
 function mc(prompt,correct,wrong,steps,hint,extra={}){prompt=anFix(prompt);
   correct=negFix(correct);wrong=wrong.map(negFix);const seen=new Set([String(correct)]);const opts=[{key:'o0',html:String(correct)}];let k=1;
-  for(const w of wrong){if(opts.length>=(extra.n||4))break;const s=String(w);if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
+  for(const w of wrong){if(opts.length>=(extra.n||OPTN))break;const s=String(w);if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
   return{prompt,options:extra.keep?opts:shuffle(opts),answer:'o0',steps:steps||[],hint:hint||'',...extra};
 }
 // True/false
@@ -38,7 +39,7 @@ function nq(prompt,value,o={}){prompt=anFix(prompt);
   const cand=[...(o.wrong||[])];
   const facs=o.int?[1,-1,2,-2,3,5]:[2,0.5,1.5,0.75,1.25,0.8,3,-1];
   for(const f of facs)cand.push(o.int?value+f*(o.step||1):value*f);
-  for(const w of cand){if(opts.length>=4)break;if(w==null||!isFinite(w))continue;if(o.pos&&w<=0)continue;if(o.nonneg&&w<0)continue;const s=fmt(w)+unit;if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
+  for(const w of cand){if(opts.length>=OPTN)break;if(w==null||!isFinite(w))continue;if(o.pos&&w<=0)continue;if(o.nonneg&&w<0)continue;const s=fmt(w)+unit;if(seen.has(s))continue;seen.add(s);opts.push({key:'o'+(k++),html:s})}
   const tol=o.int?0:(o.tol??0.02);
   return{prompt,options:shuffle(opts),answer:'o0',steps:o.steps||[],hint:o.hint||'',num:{value,tol,abs:o.abs,int:!!o.int,mod:o.mod,pre:o.pre||'',post:(o.post||'')+(o.unit?' '+o.unit:''),show:right}};
 }

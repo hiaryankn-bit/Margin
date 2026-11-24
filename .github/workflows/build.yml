@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: 20}
       - name: Test every question generator (about 38,000 questions)
-        run: cd source && node test.js src/m135.js src/m137.js src/chem.js src/phys.js src/proofs.js src/variety.js
+        run: cd source && node test.js src/m135.js src/m137.js src/chem.js src/phys.js src/proofs.js src/variety.js src/physx.js src/examfmt.js
       - name: Build the app
         run: python3 source/build_pwa.py
       - name: Check the built app parses

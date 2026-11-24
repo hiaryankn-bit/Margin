@@ -223,6 +223,16 @@ button.row:hover,a.row:hover{background:var(--surface-2)}
 .opt:active{transform:scale(.995)}
 .opt .k{flex:none}
 .opt .ic{margin-left:auto;flex:none;opacity:0}
+.opts.sel .opt .box{flex:none;width:20px;height:20px;border-radius:5px;box-shadow:inset 0 0 0 1.5px var(--line-strong,var(--muted));transition:background .15s,box-shadow .15s}
+.opts.sel .opt.on{box-shadow:inset 0 0 0 1.5px var(--ink)}.opts.sel .opt.on .box{background:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.opts.sel .opt.on .box::after{content:'';display:block;width:6px;height:11px;margin:2px 0 0 6.5px;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.opts.sel .opt.right .box{background:var(--good);box-shadow:none}.opts.sel .opt.wrong .box{background:var(--bad);box-shadow:none}
+.opt.missed{background:transparent;box-shadow:inset 0 0 0 1.5px var(--good);border-style:dashed}.opt.missed .ic{opacity:1;color:var(--good)}
+.guide .gl{margin:6px 0 0;padding-left:20px;display:grid;gap:6px}.guide .rs-h .gm{margin-left:auto;color:var(--muted);font-size:14px}
+.guide .gex{margin:10px 0;padding:10px 12px;border-radius:var(--r);background:var(--surface-2)}.guide .gex summary{cursor:pointer;font-weight:500}
+.guide .gbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.selans{margin:4px 0 0;padding-left:18px;display:grid;gap:4px}
+.selbar{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);margin-top:var(--s3)}
 .opt.right{background:var(--good-soft);box-shadow:inset 0 0 0 1.5px var(--good)}.opt.right .ic{opacity:1;color:var(--good)}.opt.right .k{color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
 .opt.wrong{background:var(--bad-soft);box-shadow:inset 0 0 0 1.5px var(--bad);animation:nudge 300ms var(--ease)}.opt.wrong .ic{opacity:1;color:var(--bad)}.opt.wrong .k{color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
 .opt.dim{opacity:.5}

@@ -77,6 +77,8 @@ function provReq(c,system,messages,max){const P=c.prov;
   return{url:base+'/chat/completions',headers:{'content-type':'application/json',authorization:'Bearer '+c.key},body,
     text:j=>{const ch=(j.choices||[])[0];if(!ch)return'';const m=ch.message||{};return typeof m.content==='string'?m.content:Array.isArray(m.content)?m.content.map(p=>p.text||'').join(''):''}}}
 function errMsg(c,s,j){const N=PROV[c.prov].n;let m='',code='';if(j){const e=Array.isArray(j)?j[0]&&j[0].error:j.error;m=typeof e==='string'?e:(e&&e.message)||j.message||'';code=e&&typeof e==='object'?String(e.code||e.type||''):''}m=String(m).replace(/\s+/g,' ').slice(0,180);
+  if(/data policy|guardrail/i.test(m))return`${N} blocked “${c.model}” because of your account’s privacy settings. Free models often log or train on prompts: allow that at openrouter.ai/settings/privacy (and check Guardrails), or pick a model that doesn’t.`;
+  if(/unavailable for free/i.test(m))return`“${c.model}” is no longer free on ${N}. ${m.replace(/^.*?(use this slug instead:?\s*)/i,'Paid version: ')}`.trim();
   if(s===403&&m&&!/api key not valid|invalid.{0,20}(api )?key|incorrect api key/i.test(m))return`${N} refused the request (403): ${m}`;
   if(s===401||s===403||/api key not valid|invalid.{0,20}(api )?key|incorrect api key/i.test(m))return`${N} rejected the key (${s}). Check it under API key.`;
   if(s===402||code==='insufficient_quota'||/credit|insufficient_quota|billing|current quota/i.test(m))return`Your ${N} account is out of credit, or billing isn’t set up.`;

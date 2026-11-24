@@ -110,3 +110,53 @@ COURSES.find(c=>c.id==='chem').worlds.find(w=>w.id==='m4').nodes.push({id:'bond'
 
 // Wire the extra templates in: each draw picks the original or one of the new templates evenly.
 for(const c of COURSES)for(const w of c.worlds)for(const n of w.nodes){const extra=VAR[c.id+'_'+n.id];if(!extra)continue;const base=n.gen,all=[base,...extra];n.gen=()=>{for(let g=0;g<8;g++){const q=pick(all)();if(q)return q}return base()}}
+
+// ---------- MATH 135 · Splitting the Modulus (nonlinear congruences) ----------
+function gSplit(){
+  const PAIRS=[[3,5],[3,7],[4,5],[5,7],[3,8],[4,7],[3,11],[5,8],[7,8],[4,9],[5,9],[7,9],[3,13],[5,11]];
+  const sols=(f,m)=>{const s=[];for(let x=0;x<m;x++)if(mod(f(x),m)===0)s.push(x);return s};
+  const list=(a,m)=>a.length?`x ≡ ${a.join(', ')} ${MOD(m)}`:'No solutions';
+  const v=Math.random();
+  // pick polynomial family
+  let m1,m2,f,txt,red;
+  const [p,q]=pick(PAIRS);m1=p;m2=q;const M=m1*m2;
+  const kind=Math.random();
+  if(kind<.5){const r=R(2,M-2);const a=mod(r*r,M);f=x=>x*x-a;txt=`x² ≡ ${a} ${MOD(M)}`;red=m=>`x² ≡ ${mod(a,m)} ${MOD(m)}`}
+  else if(kind<.8){let b,c;do{b=R(1,M-1);c=R(1,M-1)}while(sols(x=>x*x+b*x+c,M).length===0&&Math.random()<.85);f=x=>x*x+b*x+c;const pf=(B,C)=>`x²${B?` + ${B===1?'':B}x`:''}${C?` + ${C}`:''}`;txt=`${pf(b,c)} ≡ 0 ${MOD(M)}`;red=m=>`${pf(mod(b,m),mod(c,m))} ≡ 0 ${MOD(m)}`}
+  else{const r=R(2,M-2);const a=mod(r*r*r,M);f=x=>x*x*x-a;txt=`x³ ≡ ${a} ${MOD(M)}`;red=m=>`x³ ≡ ${mod(a,m)} ${MOD(m)}`}
+  const S=sols(f,M),S1=sols(f,m1),S2=sols(f,m2);
+  const combo=[];for(const s of S1)for(const t of S2){const N=crtWork(s,m1,t,m2).N;combo.push(`x ≡ ${s} ${MOD(m1)} and x ≡ ${t} ${MOD(m2)} ⇒ x ≡ ${N} ${MOD(M)}`)}
+  const steps=[`<b>Split the modulus.</b> ${M} = ${m1} · ${m2} with gcd(${m1}, ${m2}) = 1, so ${txt} ⇔ ${red(m1)} and ${red(m2)}.`,
+    `<b>Solve mod ${m1}</b> (test x = 0, …, ${m1-1}): ${S1.length?`x ≡ ${S1.join(', ')} ${MOD(m1)}`:'no solutions'}.`,
+    `<b>Solve mod ${m2}</b> (test x = 0, …, ${m2-1}): ${S2.length?`x ≡ ${S2.join(', ')} ${MOD(m2)}`:'no solutions'}.`,
+    ...(S1.length&&S2.length?[`<b>Combine every pair with CRT</b> (${S1.length} × ${S2.length} = ${S1.length*S2.length} pair${S1.length*S2.length>1?'s':''}):`,...combo]:[`One piece has no solutions, so the original congruence has none.`]),
+    `<b>Answer:</b> ${list(S,M)}.`];
+  const hint=`Split ${M} into ${m1} · ${m2}, solve each small congruence by testing values, then combine every pair with CRT.`;
+  if(v<.5){
+    // full solution set
+    const wrong=[];
+    if(S.length>2)wrong.push(list(S.slice(0,2),M),list(S.slice(0,S.length-1),M));
+    if(S.length===2)wrong.push(list([S[0]],M));
+    const lift=[...new Set([...S1,...S2])].sort((a,b)=>a-b);wrong.push(list(lift,M));
+    if(S.length)wrong.push('No solutions');else wrong.push(list(S1.length?S1:[0],M),list(S2.length?S2:[1],M));
+    let g=0;while(wrong.length<6&&g++<20){const k=R(1,Math.min(4,M-1));const fake=[...new Set(Array.from({length:k},()=>R(0,M-1)))].sort((a,b)=>a-b);if(fake.join()!==S.join())wrong.push(list(fake,M))}
+    return mc(`Find all solutions of ${txt}.`,list(S,M),wrong.filter(w=>w!==list(S,M)),steps,hint);
+  }
+  if(v<.7){
+    const n=S.length;return nq(`How many solutions does ${txt} have, with 0 ≤ x &lt; ${M}?`,n,{int:true,nonneg:true,wrong:[S1.length+S2.length,Math.max(S1.length,S2.length),n?n+2:2,n===4?2:4],steps:[...steps.slice(0,3),`Number of solutions = (solutions mod ${m1}) × (solutions mod ${m2}) = ${S1.length} × ${S2.length} = ${n}.`],hint});
+  }
+  if(v<.85){
+    const right=`${red(m1)} and ${red(m2)}`;
+    const w1=`${txt.replace(MOD(M),MOD(m1))} and ${txt.replace(MOD(M),MOD(m2))}`;
+    const wrong=[];if(w1!==right)wrong.push(w1);
+    wrong.push(`${red(m1)} or ${red(m2)}`,`${red(m1)} and ${txt}`,`${red(m1)} only`);
+    return mc(`Which pair of congruences is equivalent to ${txt}?`,right,wrong.filter(w=>w!==right),[steps[0],`Both must hold ("and", not "or"), and reduce each coefficient mod the smaller modulus.`],`Splitting the modulus needs coprime factors and keeps both conditions.`);
+  }
+  // SMT statements
+  const T=pick([
+    ()=>{const a=R(1,6);let p=R(5,11),q;do{q=R(5,13)}while(q===p||gcd(p,q)!==1);return tf(`If n ≡ ${a} ${MOD(p)} and n ≡ ${a} ${MOD(q)}, then n ≡ ${a} ${MOD(p*q)}.`,true,`gcd(${p}, ${q}) = 1, so Splitting the Modulus applies: same remainder mod each coprime factor ⇔ same remainder mod the product ${p*q}.`)},
+    ()=>{const [p,q]=pick([[4,6],[6,9],[6,10],[4,10],[9,12]]);const a=R(1,3);return tf(`If n ≡ ${a} ${MOD(p)} and n ≡ ${a} ${MOD(q)}, then n ≡ ${a} ${MOD(p*q)}.`,false,`gcd(${p}, ${q}) = ${gcd(p,q)} ≠ 1, so SMT doesn't apply. You only get n ≡ ${a} (mod lcm = ${p*q/gcd(p,q)}). Counterexample: n = ${a+p*q/gcd(p,q)}.`)},
+    ()=>{const [p,q]=pick(PAIRS);return tf(`x² ≡ 1 ${MOD(p*q)} has exactly two solutions, x ≡ ±1.`,false,`Split: x ≡ ±1 mod ${p} and x ≡ ±1 mod ${q} give ${sols(x=>x*x-1,p).length} × ${sols(x=>x*x-1,q).length} = ${sols(x=>x*x-1,p*q).length} solutions: ${sols(x=>x*x-1,p*q).join(', ')}.`)}
+  ]);return T();
+}
+{const w=COURSES.find(c=>c.id==='m135').worlds.find(w=>w.id==='crt');const i=w.nodes.findIndex(n=>n.id==='crtd');w.nodes.splice(i+1,0,{id:'split',name:'Split the Modulus',icon:'✂️',gen:gSplit})}

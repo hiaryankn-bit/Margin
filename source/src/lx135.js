@@ -231,6 +231,16 @@ X('m135_crtd',{
  ex:[{q:'Solve 3x ≡ 2 (mod 5) and 2x ≡ 1 (mod 7).',s:['3⁻¹ ≡ 2 (mod 5), so x ≡ 4 (mod 5).','2⁻¹ ≡ 4 (mod 7), so x ≡ 4 (mod 7).','Same remainder, coprime moduli: SM gives x ≡ 4 (mod 35).'],a:'x ≡ 4 (mod 35).'}],
  traps:['Running CRT before isolating x.']});
 
+X('m135_split',{
+ why:'Quizzes ask you to solve congruences like x² ≡ 4 (mod 21) that no inverse can undo. Splitting the modulus turns one hard problem into small ones you can solve by testing.',
+ idea:['Splitting the Modulus (SM): if gcd(m₁, m₂) = 1, then n ≡ a (mod m₁m₂) ⇔ n ≡ a (mod m₁) and n ≡ a (mod m₂). The remainder a is the same on both sides.','For a polynomial congruence f(x) ≡ 0 (mod m₁m₂): solve f(x) ≡ 0 (mod m₁) and f(x) ≡ 0 (mod m₂) separately by testing every residue. The two pieces usually give different answers (say 1 and 5). That is not a problem: each pair of answers is a small CRT system, and CRT glues it into one answer mod m₁m₂.','So the count multiplies: (solutions mod m₁) × (solutions mod m₂). If either piece has no solutions, neither does the original.'],
+ keys:[['SM','same remainder mod coprime m₁ and m₂ ⇔ same remainder mod m₁m₂'],['Reduce','replace each coefficient by its remainder mod the small modulus'],['Test','try x = 0, 1, …, m − 1 in each small modulus'],['Combine','every pair (s mod m₁, t mod m₂) gives one CRT answer'],['Count','#solutions = product of the counts']],
+ ex:[{q:'Solve x² ≡ 1 (mod 15).',s:['15 = 3 · 5, gcd(3, 5) = 1. Split: x² ≡ 1 (mod 3) and x² ≡ 1 (mod 5).','Mod 3: x ≡ 1, 2. Mod 5: x ≡ 1, 4.','Pairs: (1, 1) → 1, (1, 4) → 4, (2, 1) → 11, (2, 4) → 14. List trick: for x ≡ 4 (mod 5) try 4, 9, 14 and keep the one that is right mod 3.'],a:'x ≡ 1, 4, 11, 14 (mod 15).'},
+     {q:'Solve x² ≡ 4 (mod 21).',s:['21 = 3 · 7. Split: x² ≡ 4 ≡ 1 (mod 3) and x² ≡ 4 (mod 7).','Mod 3: x ≡ 1, 2. Mod 7: x ≡ 2, 5 (since 5² = 25 ≡ 4).','Combine: (1, 2) → 16, (2, 2) → 2, (1, 5) → 19, (2, 5) → 5.'],a:'x ≡ 2, 5, 16, 19 (mod 21).'},
+     {q:'Solve x ≡ 2 (mod 5), x ≡ 3 (mod 7) by substitution.',s:['From the first: x = 2 + 5k.','Plug in: 2 + 5k ≡ 3 (mod 7) ⇒ 5k ≡ 1 ⇒ k ≡ 3 (mod 7), since 5 · 3 = 15 ≡ 1.','Plug back: x = 2 + 5 · 3 = 17.'],a:'x ≡ 17 (mod 35).'}],
+ traps:['Using SM when the moduli are not coprime: n ≡ 3 (mod 4) and (mod 6) only gives n ≡ 3 (mod 12), not mod 24.','Stopping at x ≡ ±a. x² ≡ 1 (mod 15) has four solutions, not two.','Forgetting to plug k back in: find k, then compute x = a + m₁k.','Writing "or" instead of "and": both small congruences must hold.'],
+ tip:'Write a small table: solutions mod m₁ down the side, mod m₂ across the top, one CRT answer per cell.'});
+
 // ---------- RSA ----------
 X('m135_rsa',{
  why:'RSA puts the EEA, inverses and FℓT together in one computation.',

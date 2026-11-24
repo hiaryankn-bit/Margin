@@ -142,9 +142,10 @@ Style: informal and brief. Work step by step with short numbered steps when solv
 function ctxBlock(hits){return hits.length?hits.map(h=>`[${h.title}]\n${h.text.slice(0,1400)}`).join('\n\n'):'(No matching passages.)'}
 
 // ---------- view ----------
-function viewAsk(){const ctx=TUT.ctx;const k=ctx&&ctx.k&&REG[ctx.k];
+function viewAsk(){if(TUT.mode==='grade')return gradeView();const ctx=TUT.ctx;const k=ctx&&ctx.k&&REG[ctx.k];
   const sug=k?[`Explain ${k.name} simply`,`What's the most common mistake in ${k.name}?`,`Give me a practice question on ${k.name}`]:['Explain the Extended Euclidean Algorithm','Why is O₂ paramagnetic?','When do I use L\'Hôpital\'s Rule?','How do I draw a free-body diagram on an incline?'];
   return`<div class="ask"><div class="ask-h"><div><h1 class="t-title">Ask</h1><p class="t-sub">Answers use your notes first, then the lessons. Sources are cited in brackets. Attach a photo or file with the clip.</p></div></div>
+   ${askTabs()}
    <div class="ask-tools">${IN_CLAUDE?'':`<button class="btn btn-secondary btn-sm" data-act="aisettings" id="keybtn">${keyBtnHtml()}</button>`}<button class="btn btn-ghost btn-sm" data-act="notes">${ic('book',16)} Your notes</button></div>
    ${k?`<div class="ctxchip">${markEl(ctx.k)}<span>About <b>${k.name}</b>${ctx.q?', this question':''}</span><button class="icon-btn" data-act="askclear" aria-label="Remove topic">${ic('x',15)}</button></div>`:''}
    <div id="aiwarn">${!IN_CLAUDE&&!aiCfg()?noKeyHtml():''}</div>
@@ -225,3 +226,65 @@ function keyShow(btn){const i=$('#aikey');if(!i)return;const on=i.type==='passwo
 async function keyPaste(){try{const t=(await navigator.clipboard.readText()||'').trim();if(!t){toast('The clipboard is empty','x');return}const i=$('#aikey');i.value=t;i.dispatchEvent(new Event('input',{bubbles:true}))}catch(e){toast('Clipboard blocked. Long-press the box and tap Paste.','x')}}
 document.addEventListener('input',e=>{if(e.target.id==='aikey'&&!AIS.manual){const p=detectProv(e.target.value);if(p)aiSetProv(p,true)}});
 document.addEventListener('change',e=>{if(e.target.id==='aiprov'){AIS.manual=true;aiSetProv(e.target.value,false)}});
+
+// ---------- Grade my work: photo of handwritten work → TA-style marking ----------
+const RUBRIC={
+ m135:`MATH 135 markers check: the proof states what is assumed and what is to be shown; every step is justified, citing results by name (Divisibility of Integer Combinations, Bounding by Divisibility, Bézout, Euclid's Lemma, CRT, FℓT, etc.); cases cover every possibility; quantifiers are handled correctly (an arbitrary element for ∀, a specific witness for ∃); no working backwards from the conclusion; induction has a base case, a clearly stated inductive hypothesis, an inductive step that uses it, and a conclusion; set equality shows both inclusions; correct notation (| vs /, ≡, ∈ vs ⊆).`,
+ m137:`MATH 137 markers check: all work shown; limits written with "lim" until evaluated; ε–N and ε–δ proofs have the right structure (let ε > 0, choose N or δ in terms of ε, then show the inequality); theorems are named and their hypotheses checked (Squeeze, MCT, IVT, EVT, MVT, L'Hôpital needs 0/0 or ∞/∞); exact answers, no decimals; absolute-value inequalities solved by cases with the final set stated.`,
+ chem:`CHEM 120 markers check: balanced equations with states; units carried through every step; mole ratios from the balanced equation; the limiting reagent identified when relevant; correct significant figures; a final answer with units.`,
+ phys:`PHYS 121 markers check: a clear free-body or motion diagram; a coordinate system; a list of knowns and unknowns; general equations (Newton's laws, kinematics, ΔE_tot = 0, momentum conservation) before substituting; solving in symbols before numbers; a units or dimension check and special cases; the final answer boxed with units and sensible significant figures.`};
+const GRADE_SYS=(cid,graded)=>`You are a strict but kind teaching assistant marking a first-year University of Waterloo student's handwritten work for ${CREG[cid]?CREG[cid].name:'their course'}. You see photos of their work and, if given, the question.
+${RUBRIC[cid]||''}
+Rules:
+- Mark only what is written. Never invent steps that aren't there. If part of the photo is unreadable, say which part.
+- Be specific: quote or paraphrase the exact line you're commenting on.
+- Give partial credit the way a real marker would. If the student gives the "out of" value, use it; otherwise choose a sensible total for the question (usually 3 to 10).
+- Use Unicode math (∀ ∃ ∈ ≤ ≥ ≡ √ ² ₁), never LaTeX.
+- Course material may be provided; prefer its theorem names and notation.
+${graded?'- This is GRADED WORK (an assignment). Do NOT write a corrected solution or the final answer. Point to each problem and say what kind of fix is needed, as hints.':'- This is practice. After the feedback you may give a short model answer.'}
+Reply in exactly this format:
+**Score:** <earned>/<total>
+**Verdict:** <one sentence>
+**Line by line:**
+- ✓ or ✗ or ~ <the line or step>: <comment>
+(one bullet per meaningful step)
+**Biggest issue:** <the single thing that costs the most marks, or "None">
+**To get full marks:**
+- <concrete fix>
+${graded?'':'**Model answer:** <brief, only if marks were lost>'}`;
+const gradeState=()=>TUT.g||(TUT.g={course:(S.course&&CREG[S.course])?S.course:'m135',q:'',outOf:'',graded:false,res:null,busy:false});
+function gradeView(){const g=gradeState();const hist=(S.graded||[]).slice(0,6);
+ return`<div class="ask grade"><div class="ask-h"><div><h1 class="t-title">Ask</h1><p class="t-sub">Photograph your handwritten work and get it marked the way a TA would.</p></div></div>
+  ${askTabs()}
+  <div class="ask-tools">${IN_CLAUDE?'':`<button class="btn btn-secondary btn-sm" data-act="aisettings" id="keybtn">${keyBtnHtml()}</button>`}</div>
+  <div id="aiwarn">${!IN_CLAUDE&&!aiCfg()?noKeyHtml():''}</div>
+  <div class="gform">
+   <div class="lbl">Course</div><div class="seg gseg" role="group" aria-label="Course">${COURSES.map(c=>`<button class="${g.course===c.id?'on':''}" data-act="gcourse" data-id="${c.id}" aria-pressed="${g.course===c.id}">${c.name}</button>`).join('')}</div>
+   <label class="lbl" for="gq">The question <span class="optl">optional, or include it in the photo</span></label><textarea id="gq" rows="3" placeholder="e.g. Prove that if a | b and a | c then a | (2b − 3c).">${esc(g.q)}</textarea>
+   <div class="grow"><label class="lbl" for="gout">Out of <span class="optl">optional</span></label><input id="gout" class="textin" inputmode="numeric" placeholder="e.g. 5" value="${esc(g.outOf)}" style="max-width:110px"></div>
+   <label class="gchk"><input type="checkbox" id="ggraded"${g.graded?' checked':''}><span>This is for a graded assignment <span class="optl">(hints only, no full solution)</span></span></label>
+   <div class="lbl">Your work</div><div class="atts" id="atts"${TUT.atts.length?'':' hidden'}>${attsHtml(false)}</div>
+   <div class="gbtns2"><label class="btn btn-secondary filebtn">${ic('clip',18)} Add photos<input type="file" id="askfile" accept="${attAccept()}" multiple aria-label="Add photos of your work"></label><button class="btn btn-primary" data-act="gradesend" id="gsend"${g.busy?' disabled':''}>${g.busy?'Marking…':'Mark my work'}</button></div>
+  </div>
+  <div id="gres" aria-live="polite">${g.res?gradeResHtml(g.res):''}</div>
+  ${hist.length?`<section class="ghist"><h2 class="t-label">Recent marks</h2>${hist.map(h=>`<div class="ghrow"><span class="gsc num">${h.s!=null?`${h.s}/${h.t}`:'–'}</span><span class="gq">${esc(h.q||'(question in photo)')}</span><span class="gmeta">${CREG[h.c]?CREG[h.c].name:''} · ${new Date(h.at).toLocaleDateString('en-CA',{month:'short',day:'numeric'})}</span></div>`).join('')}</section>`:''}
+ </div>`}
+function askTabs(){const m=TUT.mode||'ask';return`<div class="seg asktabs" role="tablist" aria-label="Ask or grade">${[['ask','Ask a question'],['grade','Grade my work']].map(([k,t])=>`<button role="tab" aria-selected="${m===k}" class="${m===k?'on':''}" data-act="askmode" data-id="${k}">${t}</button>`).join('')}</div>`}
+function gradeResHtml(r){if(r.err)return`<div class="msg ai err">${esc(r.err)}</div>`;const sc=parseScore(r.text);
+ return`<div class="gcard">${sc?`<div class="gscore"><span class="num">${sc.s}<small>/${sc.t}</small></span><span class="gbar"><i style="width:${Math.round(100*sc.s/sc.t)}%"></i></span></div>`:''}<div class="mdx">${md(r.text.replace(/^\*\*Score:\*\*[^\n]*\n?/,''))||'<span class="thinking">Marking…</span>'}</div>${r.done?`<div class="gbtns"><button class="btn btn-ghost btn-sm" data-act="gradeask">Ask a follow-up</button><button class="btn btn-ghost btn-sm" data-act="gradenew">Mark something else</button></div>`:''}</div>`}
+function parseScore(t){const m=String(t||'').match(/\*\*Score:\*\*\s*([\d.]+)\s*\/\s*([\d.]+)/);if(!m)return null;const s=+m[1],T=+m[2];return T>0&&s>=0&&s<=T?{s,t:T}:null}
+function gradeRead(){const g=gradeState();const q=$('#gq'),o=$('#gout'),c=$('#ggraded');if(q)g.q=q.value;if(o)g.outOf=o.value.replace(/[^\d.]/g,'');if(c)g.graded=c.checked;return g}
+async function gradeSend(){const g=gradeRead();if(g.busy)return;await Promise.all(TUT.atts.map(a=>a.p).filter(Boolean));const atts=TUT.atts.filter(a=>!a.err&&!a.busy);
+ const imgs=atts.filter(a=>a.kind==='image'),docs=atts.filter(a=>a.kind!=='image');
+ if(!imgs.length&&!docs.length){toast('Add a photo of your work first','x');return}
+ g.busy=true;g.res={text:'',done:false};const box=$('#gres');const paint=()=>{const b=$('#gres');if(b)b.innerHTML=gradeResHtml(g.res);const s=$('#gsend');if(s){s.disabled=g.busy;s.textContent=g.busy?'Marking…':'Mark my work'}};paint();if(box)box.scrollIntoView({behavior:'smooth',block:'start'});
+ const qText=g.q.trim();const hits=qText?[...search(await notesIndex(),qText,3),...search(lessonIndex(),qText,3).filter(h=>!h.k||h.k.startsWith(g.course+'_'))]:[];
+ const fileBlock=docs.map(a=>`ATTACHED FILE: ${a.name}\n${a.text.slice(0,20000)}`).join('\n\n');
+ const content=`${hits.length?`COURSE MATERIAL\n${ctxBlock(hits)}\n\n`:''}QUESTION: ${qText||'(shown in the photo)'}\nOUT OF: ${g.outOf||'(choose a sensible total)'}\n${imgs.length?`(${imgs.length} photo${imgs.length>1?'s':''} of the student's work attached.)`:''}${fileBlock?'\n\n'+fileBlock:''}\n\nMark this work now, in the required format.`;
+ const messages=[{role:'user',content,imgs:imgs.map(a=>({mime:a.mime,b64:a.b64})),blobs:imgs.map(a=>a.blob)}];
+ TUT.abort=new AbortController();
+ try{await callAI(GRADE_SYS(g.course,g.graded),messages,t=>{g.res.text=t;paint()},TUT.abort.signal);if(!g.res.text)g.res={err:'No marking came back. Try again.'};else{g.res.done=true;const sc=parseScore(g.res.text);S.graded=[{at:Date.now(),c:g.course,q:qText.slice(0,90),s:sc?sc.s:null,t:sc?sc.t:null},...(S.graded||[])].slice(0,30);save();TUT.gctx={content,imgs:messages[0].imgs,blobs:messages[0].blobs,reply:g.res.text};TUT.atts=[];renderAtts()}}
+ catch(e){g.res={err:e.code==='no_ai'?'The tutor isn’t connected. Tap API key above to add one, or use Margin in Claude.':e.code==='image_rejected'||e.code==='images_unavailable'?'That photo couldn’t be sent. Try a clearer photo or a screenshot.':(e.message||'Something went wrong.')}}
+ g.busy=false;paint()}
+function gradeAsk(){const g=gradeState(),c=TUT.gctx;if(!c)return;TUT.mode='ask';TUT.ctx=null;TUT.atts=[];
+ TUT.msgs=[{role:'user',content:c.content,show:`Mark my ${CREG[g.course].name} work${g.q?`: ${g.q.slice(0,80)}`:''}`,imgs:c.imgs,atts:(c.imgs||[]).map(()=>({kind:'image',name:'Your work'}))},{role:'assistant',content:c.reply}];go('ask')}

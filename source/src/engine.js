@@ -84,8 +84,8 @@ function wpRaw(k,depth=2,seen=new Set()){const out=[];for(const p of PRE()[k]||[
 // ---------- 5b. Exam readiness (an estimate, with its basis) ----------
 function readiness(e){const ks=e.worlds.flatMap(w=>WREG[w]?WREG[w].nodes.map(n=>n.key):[]);if(!ks.length)return{pct:0,cov:0,conf:'none',n:0,ks};
  const exDay=dayNum(e.date);let sum=0,tried=0,nAns=0;for(const k of ks){const M=lpMastery(k);if(!M.n)continue;tried++;nAns+=M.n;const R=recall(k,exDay);sum+=M.pct*(R==null?.6:.5+.5*R)}
- const cov=tried/ks.length,pct=Math.round(sum/ks.length);const conf=cov<.5||nAns<ks.length*3?'low':cov<.9||nAns<ks.length*6?'medium':'high';
- return{pct,cov,conf,n:nAns,ks,tried}}
+ const cov=tried/ks.length;let pct=Math.round(sum/ks.length);const mk=(S.mocks||[]).filter(m=>(m.ex===e.id||(m.c===e.course&&(m.mode==='mid'||m.mode==='final')))&&Date.now()-m.at<14*864e5).slice(-1)[0];if(mk)pct=Math.round(.75*pct+.25*100*mk.score/mk.n);const conf=cov<.5||nAns<ks.length*3?'low':cov<.9||nAns<ks.length*6?'medium':'high';
+ return{pct,cov,conf,n:nAns,ks,tried,mock:mk||null}}
 
 // ---------- 5c. Daily plan: what to study today, and why ----------
 function planToday(){const d=ensureDaily();d.pd=d.pd||{};const budget=S.dailyMin||45;const t=today();const cands=[];
@@ -139,6 +139,7 @@ Weak topics: ${weak.map(r=>`${REG[r.k].name} ${r.M.pct}% (${r.M.n} answers)`).jo
 Strong topics: ${strong.map(r=>REG[r.k].name).join(', ')||'none yet'}
 Mistake types the student tagged: ${Object.entries(et).map(([t,n])=>`${t} ×${n}`).join(', ')||'none'}
 Recent mistakes: ${recentMist.join(' | ')||'none'}
+Misconceptions noticed before: ${(S.miscon||[]).slice(-5).map(x=>x.t).join(' | ')||'none'}
 Use this to pitch explanations: revisit weak prerequisites when relevant; don't assume a topic is understood from one correct answer.`}
 
 // =====================================================================
@@ -156,6 +157,7 @@ function topicSheet(k){const n=REG[k];if(!n)return;const M=lpMastery(k),R=recall
   <div class="tstat"><div><div class="t-label">Estimated mastery</div><div class="num big">${M.n?`${M.pct}%`:'–'}</div><div class="s">${M.n?`likely ${M.lo}–${M.hi}% · ${confLbl[M.conf]}`:confLbl.none}</div>${M.n?pctBar(M.pct,M.lo,M.hi):''}</div>
    <div><div class="t-label">Predicted recall now</div><div class="num big">${R==null||M.pct<50?'–':Math.round(R*100)+'%'}</div><div class="s">${R==null?'Starts after your first round':M.pct<50?'Tracked once mastery passes 50%. Until then, practise to learn it.':`Memory model estimate. ${due!=null?(due<=today()?'Review is due':`Next review in ${due-today()} day${due-today()===1?'':'s'}`):''}`}</div></div></div>
   <div class="tobs"><b>What you've actually done:</b> ${a.n?`${a.c} of ${a.n} right${a.msN?`, about ${Math.max(1,Math.round(a.ms/a.msN/1000))} s per question`:''}${a.hn?`, ${a.hn} with a hint`:''}${a.last?`. Last practised ${new Date(a.last).toLocaleDateString('en-CA',{month:'short',day:'numeric'})}`:''}.`:'Not practised yet.'}</div>
+  ${(S.miscon||[]).filter(x=>x.k===k).length?`<div class="tobs"><b>Misconceptions the tutor noticed:</b> ${(S.miscon||[]).filter(x=>x.k===k).slice(-3).map(x=>esc(x.t)).join(' · ')}</div>`:''}
   ${et.length?`<div class="tobs"><b>Why you missed questions here:</b> ${et.map(([t,c])=>`${(ERR_TYPES.find(x=>x[0]===t)||[0,t])[1].toLowerCase()} ×${c}`).join(', ')}.</div>`:''}
   ${pre.length?`<div class="tlinks"><div class="t-label">Builds on</div>${pre.map(p=>`<button class="tchip st-${statusOf(p)}" data-act="topic" data-id="${p}">${REG[p].name} <small>${S.lp&&S.lp[p]&&S.lp[p].n?lpMastery(p).pct+'%':'new'}</small></button>`).join('')}</div>`:''}
   ${dep.length?`<div class="tlinks"><div class="t-label">Needed for</div>${dep.map(p=>`<button class="tchip st-${statusOf(p)}" data-act="topic" data-id="${p}">${REG[p].name}</button>`).join('')}</div>`:''}
@@ -192,3 +194,52 @@ async function backupsModal(){const bs=await lpBackups();modal(`<div class="box-
  <div class="stack" style="margin-top:12px"><button class="btn btn-secondary btn-block" data-act="bknow">Back up now</button></div>
  <p class="t-sub" style="font-size:12px;margin-top:8px">Backups stay on this device. To move progress to another device, use Move progress.</p>`)}
 async function bkRestore(day){const bs=await lpBackups();const b=bs.find(x=>x.day===day);if(!b)return;if(!confirm('Replace your current progress with the backup from '+day+'?'))return;try{const v=JSON.parse(b.data);localStorage.setItem(LS,JSON.stringify(v));location.reload()}catch(e){toast('That backup could not be read','x')}}
+
+// =====================================================================
+// Mock exams: diagnostic, weakness-focused, midterm, final, challenge
+// Answers are recorded but no feedback is shown until the end; then a full report.
+// =====================================================================
+const MOCK={diag:['Diagnostic','One question from every topic in the course, untimed. Places you on the knowledge map so the plan knows where to start.'],
+ weak:['Weakness-focused','10 questions from your weakest topics and the prerequisites behind them. Timed at 20 minutes.'],
+ mid:['Midterm simulation','15 questions in your real test format from the chapters of your next test. Timed.'],
+ final:['Final exam simulation','25 questions from the whole course. Timed at 60 minutes.'],
+ challenge:['Challenge exam','10 of the hardest formats: multi-part, select-all and typed answers. Timed at 25 minutes.']};
+let MOCKT=null;
+function mockSpec(mode,cid,exId){const C=CREG[cid];const ns=allNodes(cid).map(n=>n.key);let pool=ns,n=10,mins=20,title=MOCK[mode][0];
+ if(mode==='diag'){pool=ns.slice(0,30);n=pool.length;mins=0}
+ else if(mode==='weak'){const tried=ns.filter(k=>S.lp&&S.lp[k]&&S.lp[k].n);const w=tried.sort((a,b)=>lpMastery(a).pct-lpMastery(b).pct).slice(0,5);const pre=[...new Set(w.flatMap(k=>weakPrereqs(k,1)))];pool=[...new Set([...w,...pre])];if(!pool.length)pool=ns.slice(0,6);n=10;mins=20}
+ else if(mode==='mid'){const ex=exId?(S.exams||[]).find(e=>e.id===exId):upcoming().find(e=>e.course===cid);const ws=ex?ex.worlds:C.worlds.slice(0,Math.ceil(C.worlds.length/2)).map(w=>w.key);pool=ws.flatMap(w=>WREG[w]?WREG[w].nodes.map(n=>n.key):[]);n=15;mins=cid==='chem'?45:cid==='phys'?50:40;if(ex){title=`${ex.title}: simulation`;exId=ex.id}}
+ else if(mode==='final'){n=25;mins=60}
+ else if(mode==='challenge'){n=10;mins=25}
+ return{mode,cid,pool,n,mins,title,exId}}
+function mockModal(cid){cid=cid||S.course;const C=CREG[cid];const up=upcoming().find(e=>e.course===cid);
+ modal(`<div class="box-h"><span class="mark">${ic('trophy',18)}</span><div><div class="t-label">${C.name}</div><h2 class="t-title">Mock exams</h2></div><button class="icon-btn close" data-act="close" aria-label="Close">${ic('x')}</button></div>
+ <p style="margin:0 0 8px;color:var(--ink-2);line-height:1.55">No hints and no answers until you finish, like the real thing. Then you get a full report: by topic, time per question, the concepts behind your mistakes, and what to do next.</p>
+ <div class="group">${Object.entries(MOCK).map(([k,[t,d]])=>`<button class="row" data-act="mockgo" data-id="${k}" data-c="${cid}"><span class="main-t"><span class="t">${t}</span><span class="s" style="white-space:normal">${k==='mid'?(up?`15 questions from ${esc(up.title)}'s chapters. Timed.`:'15 questions from the first half of the course. Timed. Add a test under Coming up to target it.'):d}</span></span><span class="end">${ic('chev',16)}</span></button>`).join('')}</div>`)}
+function startMock(mode,cid,exId){closeModal(true);ac();stopSprint();const sp=mockSpec(mode,cid,exId);S.course=cid;let queue=[];
+ const pickQ=k=>{let q=single(k);if(sp.mode==='challenge'){for(let t=0;t<6&&!(q.multi||q.sel||q.num);t++)q=single(k)}return q};
+ if(sp.mode==='diag')queue=sp.pool.map(pickQ);else{const ks=shuffle(sp.pool.slice());for(let i=0;i<sp.n;i++)queue.push(pickQ(ks[i%ks.length]))}
+ queue=shuffle(queue);
+ RD={type:'mock',id:mode,queue,i:0,base:queue.length,correct:0,combo:0,best:0,xp:0,retries:0,hearts:0,hp:0,hpMax:0,boss:false,test:true,mock:sp,log:[],freeHint:false,shield:false,touched:{},t0:Date.now(),before:{},deadline:sp.mins?Date.now()+sp.mins*60e3:0};
+ queue.forEach(q=>{if(!(q.nk in RD.before))RD.before[q.nk]=mastery(q.nk)});clearInterval(MOCKT);if(RD.deadline)MOCKT=setInterval(mockTick,1000);renderQ()}
+function mockTick(){if(!RD||RD.type!=='mock'||RD.done){clearInterval(MOCKT);return}const left=RD.deadline-Date.now();const el=document.getElementById('mtimer');if(el){const m=Math.max(0,Math.floor(left/60e3)),s=Math.max(0,Math.floor(left%60e3/1e3));el.textContent=`${m}:${String(s).padStart(2,'0')}`;el.classList.toggle('low',left<5*60e3)}if(left<=0){clearInterval(MOCKT);toast('Time’s up');endRound()}}
+function mockTimerHtml(){if(!RD||RD.type!=='mock')return'';if(!RD.deadline)return`<span class="mtimer">Untimed</span>`;const left=RD.deadline-Date.now();return`<span class="mtimer num${left<5*60e3?' low':''}" id="mtimer" aria-label="Time left">${Math.max(0,Math.floor(left/60e3))}:${String(Math.max(0,Math.floor(left%60e3/1e3))).padStart(2,'0')}</span>`}
+function mockEnd(){clearInterval(MOCKT);RD.done=true;const sp=RD.mock,log=RD.log,ms=Date.now()-RD.t0;const d=ensureDaily();hist().ms+=Math.min(3*36e5,ms);
+ d.rounds++;S.stats.rounds++;touchStreak();updateSRS();const c=log.filter(x=>x.ok).length,n=RD.base,pct=n?Math.round(100*c/n):0;
+ (S.mocks=S.mocks||[]).push({at:Date.now(),mode:sp.mode,c:sp.cid,score:c,n,ms,ex:sp.exId||null});if(S.mocks.length>40)S.mocks.shift();addXp(10+c*3);save();
+ const by={};for(const x of log)(by[x.q.nk]=by[x.q.nk]||{k:x.q.nk,c:0,n:0,ms:0}),by[x.q.nk].n++,by[x.q.nk].ms+=x.ms,x.ok&&by[x.q.nk].c++;
+ const tops=Object.values(by).sort((a,b)=>a.c/a.n-b.c/b.n);const weak=tops.filter(t=>t.c/t.n<.67);const slow=log.slice().sort((a,b)=>b.ms-a.ms).slice(0,3);const unans=n-log.length;
+ const roots=[...new Set(weak.flatMap(t=>weakPrereqs(t.k,1)))].filter(k=>!by[k]||by[k].c/by[k].n<.67).slice(0,3);
+ const avg=log.length?Math.round(log.reduce((a,x)=>a+x.ms,0)/log.length/1000):0;const per=sp.mins?Math.round(sp.mins*60/n):0;
+ const opt=(q,k)=>{const o=(q.options||[]).find(o=>o.key===k);return o?o.html:(k===''||k==null?'(none)':esc(String(k)))};
+ const ansOf=x=>x.q.sel?(x.key?x.key.split(',').map(k=>opt(x.q,k)).join('; '):'(none selected)'):x.typed?esc(String(x.key)):opt(x.q,x.key);
+ const corOf=q=>q.sel?(q.answer?q.answer.split(',').map(k=>opt(q,k)).join('; '):'None of them'):opt(q,q.answer);
+ let o=`<div class="qtop"><div class="qtop-in"><button class="icon-btn" data-act="home" aria-label="Close">${ic('x')}</button><span class="t-label" style="flex:1">${esc(sp.title)} report</span></div></div><article class="read mrep">
+  <div class="result-h"><h1 class="t-title">${pct>=80?'Strong result':pct>=60?'Solid, with gaps':'Plenty to work on'}</h1><p class="t-sub">${CREG[sp.cid].name} · ${MOCK[sp.mode][0]} · ${fmtMin(ms)}${sp.mins?` of ${sp.mins} min`:''}</p><div class="score num">${c}<small> / ${n}</small></div><p class="t-sub">${pct}%${unans?` · ${unans} unanswered`:''}</p></div>
+  <section class="rs"><h2 class="rs-h"><span class="rs-n">By topic</span></h2><div class="ttab">${tops.map(t=>`<button class="tr" data-act="topic" data-id="${t.k}"><span class="tn">${REG[t.k].name}</span><span class="num">${t.c}/${t.n}</span><span class="num">${Math.round(t.ms/t.n/1000)} s</span><span class="num">${mastery(t.k)}%</span></button>`).join('')}</div><p class="t-sub" style="font-size:12px">Right · average time · mastery now (an estimate, updated with this exam).</p></section>
+  <section class="rs"><h2 class="rs-h"><span class="rs-n">Time</span></h2><p>You averaged <b>${avg} s</b> per question${per?`; the pace for this exam is about <b>${per} s</b>`:''}. ${per&&avg>per*1.15?'You were behind pace: practise the slow topics below until they feel routine.':per?'Your pace was fine.':''}</p>${slow.length?`<ul class="gl">${slow.map(x=>`<li>${Math.round(x.ms/1000)} s on ${REG[x.q.nk].name}${x.ok?'':' (and missed)'}</li>`).join('')}</ul>`:''}</section>
+  <section class="rs"><h2 class="rs-h"><span class="rs-n">What to work on</span></h2>${weak.length?`<ul class="gl">${weak.slice(0,5).map(t=>`<li><b>${REG[t.k].name}</b>: ${t.c} of ${t.n}.${(()=>{const w=weakPrereqs(t.k,1);if(!w.length)return'';const wk=w.filter(k=>statusOf(k)==='weak'),un=w.filter(k=>statusOf(k)!=='weak');return` It builds on ${w.map(k=>REG[k].name).join(' and ')}: ${wk.length?`${wk.map(k=>REG[k].name).join(' and ')} look${wk.length>1?'':'s'} weak`:''}${wk.length&&un.length?', and ':''}${un.length?`${un.map(k=>REG[k].name).join(' and ')} ${un.length>1?'haven’t':'hasn’t'} been practised yet`:''}.`})()}</li>`).join('')}</ul>${roots.length?`<p class="tnote">Start with the foundation: <b>${roots.map(k=>REG[k].name).join(', ')}</b>. The topics above build on ${roots.length>1?'these':'this'}, so firming ${roots.length>1?'them':'it'} up should help.</p>`:''}`:'<p>No weak topics in this exam. Try the challenge exam, or a longer simulation.</p>'}
+   <div class="gbtns">${(roots[0]||weak[0])?`<button class="btn btn-primary btn-sm" data-act="start" data-type="node" data-id="${roots[0]||weak[0].k}">Practise ${REG[roots[0]||weak[0].k].name}</button>`:''}${log.some(x=>!x.ok)?`<button class="btn btn-secondary btn-sm" data-act="fix">Retest these mistakes</button>`:''}</div></section>
+  <section class="rs"><h2 class="rs-h"><span class="rs-n">Every question</span></h2>${log.map((x,i)=>`<details class="gex mq ${x.ok?'ok':'no'}"><summary><span class="mqn">${i+1}</span> ${x.ok?ic('check',14,2.4):ic('x',14,2.4)} ${REG[x.q.nk].name} · ${Math.round(x.ms/1000)} s</summary><div class="mqp">${x.q.prompt}</div><p><b>Your answer:</b> ${ansOf(x)}</p>${x.ok?'':`<p><b>Correct:</b> ${corOf(x.q)}</p>`}<ol class="steps">${(x.q.steps||[]).map(t=>`<li>${t}</li>`).join('')}</ol></details>`).join('')}</section>
+  <div class="cta" style="margin:20px 0"><button class="btn btn-secondary btn-lg btn-block" data-act="mockgo" data-id="${sp.mode}" data-c="${sp.cid}">Take another ${MOCK[sp.mode][0].toLowerCase()}</button></div></article>`;
+ focusView(o);checkAch();save()}

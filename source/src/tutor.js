@@ -139,17 +139,32 @@ Ground every answer in the COURSE MATERIAL below. It takes priority over your ge
 After any claim taken from the material, cite it in square brackets with its label, for example [Notes: CHEM Module 4, p. 16] or [Lesson: Bézout & EEA].
 If the material does not cover the question, say so in one short line ("Not in your notes; here's the general idea."), then answer from general knowledge.
 Style: informal and brief. Work step by step with short numbered steps when solving. If the student is working on graded assignment questions, guide with hints rather than giving the final answer. Write math in plain Unicode (x², √, ≤, ∑, ∫); no LaTeX. No headings.`;
+
+// ---------- Teaching modes, alternative explanations, misconception capture ----------
+const TMODES=[['explain','Explain','Answer clearly and briefly, with short numbered steps when solving.'],
+ ['steps','Step by step','Break the problem into small numbered steps. Explain every operation and WHY it is needed. Never skip reasoning. After each major step, ask one quick check question before moving on, and wait for the reply.'],
+ ['socratic','Socratic','Do NOT give the answer. Ask one guiding question at a time that leads the student to the next idea. When they answer, say whether it is right, probe any misunderstanding with a follow-up question, and gradually increase difficulty. Only reveal the full solution if they explicitly ask.'],
+ ['concept','Big picture','Explain the underlying idea: why it is true, how it connects to other topics in the course, and an intuitive picture or analogy. Use at most a small example; focus on understanding over procedure.'],
+ ['exam','Exam','Act like a university professor running an exam. Give ONE exam-style question at a time on the topic (in the format of the student\'s course tests), say how long it should take, and do not reveal the answer. When the student replies, grade it out of the stated marks like a marker, then explain the errors, then offer the next question.'],
+ ['challenge','Challenge','Give hard problems that combine several concepts or put the idea in an unfamiliar setting. One problem at a time, no answer until the student attempts it. Then grade and explain.']];
+const ALT=['a different angle: describe a picture or diagram in words','a fully worked numerical example with small numbers','an intuitive analogy from everyday life','a clean algebraic derivation','first principles, building up from the definitions','a real-world application'];
+const tmode=()=>TMODES.find(m=>m[0]===(TUT.tmode||'explain'))||TMODES[0];
+function sysFor(){const m=tmode();return TUTOR_SYS+`\n\nTEACHING MODE: ${m[1]}. ${m[2]}\nIf you notice a specific misconception the student holds (not just a slip), end your reply with one line exactly like: [[misconception: <one short sentence>]]. Otherwise don't add that line.`}
+function tmodesHtml(){return`<div class="tmodes" role="group" aria-label="Teaching mode">${TMODES.map(([k,l])=>`<button class="chip${(TUT.tmode||'explain')===k?' on':''}" data-act="tmode" data-id="${k}" aria-pressed="${(TUT.tmode||'explain')===k}">${l}</button>`).join('')}</div>`}
+function askAlt(){TUT.alt=((TUT.alt==null?-1:TUT.alt)+1)%ALT.length;askSend(`I still don't get it. Explain it again using ${ALT[TUT.alt]}. Don't repeat your last explanation.`,`Explain it another way (${ALT[TUT.alt].replace(/^a |^an /,'').split(':')[0]})`)}
+function takeMiscon(m){const re=/\[\[misconception:\s*([^\]]+)\]\]/i;const x=String(m.content||'').match(re);if(!x)return;m.content=m.content.replace(re,'').trim();const k=TUT.ctx&&TUT.ctx.k;S.miscon=S.miscon||[];if(!S.miscon.some(y=>y.t===x[1].trim())){S.miscon.push({t:x[1].trim(),k:k||null,at:Date.now()});if(S.miscon.length>40)S.miscon.shift();save()}m.mis=x[1].trim()}
+
 function ctxBlock(hits){return hits.length?hits.map(h=>`[${h.title}]\n${h.text.slice(0,1400)}`).join('\n\n'):'(No matching passages.)'}
 
 // ---------- view ----------
 function viewAsk(){if(TUT.mode==='grade')return gradeView();const ctx=TUT.ctx;const k=ctx&&ctx.k&&REG[ctx.k];
   const sug=k?[`Explain ${k.name} simply`,`What's the most common mistake in ${k.name}?`,`Give me a practice question on ${k.name}`]:['Explain the Extended Euclidean Algorithm','Why is O₂ paramagnetic?','When do I use L\'Hôpital\'s Rule?','How do I draw a free-body diagram on an incline?'];
   return`<div class="ask"><div class="ask-h"><div><h1 class="t-title">Ask</h1><p class="t-sub">Answers use your notes first, then the lessons. Sources are cited in brackets. Attach a photo or file with the clip.</p></div></div>
-   ${askTabs()}
+   ${askTabs()}${tmodesHtml()}
    <div class="ask-tools">${IN_CLAUDE?'':`<button class="btn btn-secondary btn-sm" data-act="aisettings" id="keybtn">${keyBtnHtml()}</button>`}<button class="btn btn-ghost btn-sm" data-act="notes">${ic('book',16)} Your notes</button></div>
    ${k?`<div class="ctxchip">${markEl(ctx.k)}<span>About <b>${k.name}</b>${ctx.q?', this question':''}</span><button class="icon-btn" data-act="askclear" aria-label="Remove topic">${ic('x',15)}</button></div>`:''}
    <div id="aiwarn">${!IN_CLAUDE&&!aiCfg()?noKeyHtml():''}</div>
-   <div class="msgs" id="msgs" aria-live="polite">${TUT.msgs.length?TUT.msgs.map(msgHtml).join(''):`<div class="sugs">${sug.map(t=>`<button class="sug" data-act="asksug">${esc(t)}</button>`).join('')}</div>`}</div>
+   <div class="msgs" id="msgs" aria-live="polite">${TUT.msgs.length?TUT.msgs.map((m,i,a)=>msgHtml(m,i,a)).join(''):`<div class="sugs">${sug.map(t=>`<button class="sug" data-act="asksug">${esc(t)}</button>`).join('')}</div>`}</div>
    <div class="composer"><div class="atts" id="atts"${TUT.atts.length?'':' hidden'}>${attsHtml(false)}</div>
    <form class="cform" id="askform"><label class="attbtn filebtn" aria-label="Attach a photo or file">${ic('clip',20)}<input type="file" id="askfile" accept="${attAccept()}" multiple aria-label="Attach a photo or file"></label><textarea id="askin" rows="1" placeholder="Ask about your courses" aria-label="Your question"></textarea><button class="btn btn-primary send" type="submit" id="asksend" aria-label="Send">${ic('chev',18,2.2)}</button></form></div></div>`}
 function keyBtnHtml(){const c=aiCfg();return`${ic('key',16)}<span>API key</span><span class="kst${c?' on':''}">${c?'Connected · '+PROV[c.prov].s:'Not set'}</span>`}
@@ -158,8 +173,8 @@ function askRefresh(){const b=$('#keybtn');if(b)b.innerHTML=keyBtnHtml();showRou
 function md(t){let h=esc(t);h=h.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>').replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/\[((?:Notes|Lesson):[^\]\n]{1,120})\]/g,'<span class="cite">$1</span>');
   const lines=h.split('\n');let out='',list=null;for(const l of lines){const m=l.match(/^\s*(\d+)[.)]\s+(.*)$/),b=l.match(/^\s*[-•*]\s+(.*)$/);if(m||b){const tag=m?'ol':'ul';if(list!==tag){if(list)out+=`</${list}>`;out+=`<${tag}>`;list=tag}out+=`<li>${(m?m[2]:b[1])}</li>`}else{if(list){out+=`</${list}>`;list=null}if(l.trim())out+=`<p>${l}</p>`}}if(list)out+=`</${list}>`;return out}
 function mattsHtml(m){return m.atts&&m.atts.length?`<div class="matts">${m.atts.map(a=>a.thumb?`<img src="${a.thumb}" alt="${esc(a.name)}">`:`<span class="mfile">${ic('file',14)}<span>${esc(a.name)}</span></span>`).join('')}</div>`:''}
-function msgHtml(m){return m.role==='user'?`<div class="msg me">${mattsHtml(m)}${esc(m.show!=null?m.show:m.content)}</div>`:`<div class="msg ai">${m.content?md(m.content):m.err?'':'<span class="typing">Thinking…</span>'}${m.err?`<p class="xerr">${esc(m.err)}</p>`:''}</div>`}
-function renderMsgs(){const box=askEl('#msgs');if(!box)return;box.innerHTML=TUT.msgs.map(msgHtml).join('');const last=box.lastElementChild;if(last)last.scrollIntoView({block:'end',behavior:'smooth'})}
+function msgHtml(m,i,arr){const last=arr&&i===arr.length-1;return m.role==='user'?`<div class="msg me">${mattsHtml(m)}${esc(m.show!=null?m.show:m.content)}</div>`:`<div class="msg ai">${m.content?md(String(m.content).replace(/\[\[misconception:[^\]]*\]?\]?/i,'')):m.err?'':'<span class="typing">Thinking…</span>'}${m.err?`<p class="xerr">${esc(m.err)}</p>`:''}${m.mis?`<p class="misn">Noted for your profile: ${esc(m.mis)}</p>`:''}${last&&m.content&&!TUT.busy?`<div class="altrow"><button class="btn btn-ghost btn-sm" data-act="askalt">Explain it another way</button></div>`:''}</div>`}
+function renderMsgs(){const box=askEl('#msgs');if(!box)return;box.innerHTML=TUT.msgs.map((m,i,a)=>msgHtml(m,i,a)).join('');const last=box.lastElementChild;if(last)last.scrollIntoView({block:'end',behavior:'smooth'})}
 async function showRoute(){const w=askEl('#aiwarn');if(!w)return;const r=await aiRoute();document.querySelectorAll('#askfile').forEach(i=>i.accept=attAccept());if(r)return w.innerHTML='';
   w.innerHTML=IN_CLAUDE?`<div class="tip">${ic('hint',17)}<div><div class="lbl">Connect the tutor</div>The tutor needs Claude access. Allow it when Claude asks, or use the phone app with your own API key.</div></div>`:noKeyHtml()}
 async function askSend(text,show){if(TUT.busy)return;text=String(text||'');if(!text.trim()&&!TUT.atts.some(a=>!a.err))return;TUT.busy=true;const btn0=askEl('#asksend');if(btn0)btn0.disabled=true;
@@ -170,14 +185,14 @@ async function askSend(text,show){if(TUT.busy)return;text=String(text||'');if(!t
   const content=q+(imgs.length?`\n\n(${imgs.length} photo${imgs.length>1?'s':''} attached.)`:'')+(fileBlock?'\n\n'+fileBlock:'');
   const qCtx=[q,docs.map(a=>a.text.slice(0,600)).join(' '),k?REG[k].name:'',ctx&&ctx.q?strip(ctx.q.prompt):''].join(' ');
   const notes=search(await notesIndex(),qCtx,5),less=search(lessonIndex(),qCtx,3);if(k&&!less.some(h=>h.k===k)){const own=lessonIndex().chunks.find(c=>c.k===k);if(own)less.unshift(own)}
-  let first=`COURSE MATERIAL\n\n${ctxBlock([...notes,...less.slice(0,4)])}`;
+  let first=`COURSE MATERIAL\n\n${ctxBlock([...notes,...less.slice(0,4)])}`;{const br=learnerBrief(k?REG[k].course.id:S.course);if(br)first+=`\n\n${br}`}
   if(ctx&&ctx.q){const qq=ctx.q;const opt=o=>strip(o.html);first+=`\n\nTHE QUESTION THE STUDENT IS LOOKING AT\n${strip(qq.prompt)}\nOptions: ${qq.options.map(opt).join(' | ')}\nCorrect answer: ${opt(qq.options.find(o=>o.key===qq.answer)||{html:qq.answer})}${ctx.picked?`\nStudent picked: ${opt(qq.options.find(o=>o.key===ctx.picked)||{html:ctx.picked})}`:''}\nApp's worked steps: ${(qq.steps||[]).map(strip).join(' / ')}`}
   const history=TUT.msgs.filter(m=>m.content&&!m.err).slice(-6).map(m=>({role:m.role,content:m.content,imgs:m.imgs}));
   const userTurn={role:'user',content,show:show!=null?show:text.trim(),atts:atts.map(a=>({kind:a.kind,name:a.name,thumb:a.thumb})),imgs:imgs.map(a=>({mime:a.mime,b64:a.b64}))};TUT.msgs.push(userTurn);const ai={role:'assistant',content:''};TUT.msgs.push(ai);renderMsgs();
   const messages=[...(history.length?[{role:'user',content:first+'\n\n(Earlier conversation follows.)'},{role:'assistant',content:'Understood.'},...history]:[]),{role:'user',content:(history.length?'':first+'\n\nSTUDENT\'S QUESTION\n')+content,imgs:userTurn.imgs,blobs:imgs.map(a=>a.blob)}];
   let left=TUT.imgMax;for(let i=messages.length-1;i>=0;i--){const m=messages[i];if(!m.imgs||!m.imgs.length)continue;if(left<=0){m.imgs=null;continue}if(m.imgs.length>left)m.imgs=m.imgs.slice(-left);left-=m.imgs.length}
   TUT.abort=new AbortController();
-  try{await callAI(TUTOR_SYS,messages,t=>{ai.content=t;renderMsgs()},TUT.abort.signal);if(!ai.content)ai.err='No answer came back. Try again.'}
+  try{await callAI(sysFor(),messages,t=>{ai.content=t;renderMsgs()},TUT.abort.signal);if(!ai.content)ai.err='No answer came back. Try again.';else{takeMiscon(ai);renderMsgs()}}
   catch(e){ai.err=e.code==='no_ai'?'The tutor isn’t connected. Tap API key above to add one, or use Margin in Claude.':e.code==='not_granted'?'Claude access wasn’t allowed. Allow it to use the tutor.':e.code==='rate_limited'?'Too many questions at once. Wait a moment, then try again.':e.code==='image_rejected'||e.code==='images_unavailable'?'Claude couldn’t take that photo here. Try a different one, or describe it in words.':(e.message||'Something went wrong.');
     if(!ai.content){TUT.msgs=TUT.msgs.filter(m=>m!==userTurn);if(atts.length&&!TUT.atts.length){TUT.atts=atts;renderAtts()}}}
   TUT.busy=false;renderMsgs();if(askEl('#asksend'))askEl('#asksend').disabled=false}

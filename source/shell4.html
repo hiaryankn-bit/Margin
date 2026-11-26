@@ -248,6 +248,13 @@ button.row:hover,a.row:hover{background:var(--surface-2)}
 .tnote{padding:10px 12px;border-radius:var(--r);background:var(--surface-2)}
 .row.ins .main-t .t{white-space:normal}
 .tmodes{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 10px;padding-bottom:2px}.tmodes .chip{flex:none}
+.attbtn.mic.on{background:var(--bad);color:#fff;box-shadow:none;animation:micp 1.2s ease-in-out infinite}@keyframes micp{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--bad) 25%,transparent)}}@media (prefers-reduced-motion:reduce){.attbtn.mic.on{animation:none}}
+.altrow{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.msg.ai .spk{width:40px;height:40px;padding:0;display:inline-grid;place-items:center}
+.fcard .fc-front{font-size:20px;line-height:1.45;margin-top:20px;padding:20px;border-radius:var(--r-lg,14px);background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-2)}
+.fcard .fc-back{font-size:16px;line-height:1.55;margin:12px 0;padding:16px 20px;border-radius:var(--r-lg,14px);background:var(--surface-2)}
+.fc-rate{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.fc-rate .btn{flex-direction:column;height:auto;min-height:56px;padding:8px 4px;gap:2px}.fc-rate small{font-size:11px;opacity:.75;font-weight:400}
+.balres{margin-top:16px}.beq{font-size:19px;line-height:1.5;padding:14px 16px;border-radius:var(--r);background:var(--surface-2);overflow-x:auto}
+.baltab{width:100%;border-collapse:collapse;margin:12px 0 4px;font-size:14px}.baltab th,.baltab td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}.baltab th{color:var(--muted);font-weight:500}
 .misn{font-size:12px;color:var(--muted);margin-top:8px}.altrow{margin-top:6px}
 .mtimer{font-size:14px;font-weight:600;padding:0 8px;color:var(--ink-2)}.mtimer.low{color:var(--bad)}
 .mrep .mq summary{display:flex;align-items:center;gap:8px}.mrep .mq.ok summary svg{color:var(--good)}.mrep .mq.no summary svg{color:var(--bad)}.mqn{font-size:12px;color:var(--muted);min-width:18px}.mqp{margin:8px 0}.lsub.rdy{font-size:13px;color:var(--muted);margin-top:-4px}

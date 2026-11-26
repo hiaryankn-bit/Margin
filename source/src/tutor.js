@@ -47,12 +47,6 @@ async function importNotes(files){const st=$('#notestat');const say=t=>{if(st)st
     if(!n)throw new Error(`No text found in ${f.name}. Scanned PDFs have no text layer.`);say(`Added ${f.name}: ${pages.length} page${pages.length>1?'s':''}.`)}catch(e){say(e.message||String(e))}}
   TUT.notes=null;notesModal(true)}
 async function deleteDoc(id){const d=await idb();const tx=d.transaction(['docs','chunks'],'readwrite');const ix=tx.objectStore('chunks').index('doc');ix.openCursor(IDBKeyRange.only(id)).onsuccess=e=>{const c=e.target.result;if(c){c.delete();c.continue()}};tx.objectStore('docs').delete(id);await new Promise(r=>tx.oncomplete=r);TUT.notes=null;notesModal(true)}
-async function notesModal(keep){const docs=await idbAll('docs').catch(()=>[]);const msg=keep&&$('#notestat')?$('#notestat').textContent:'';
-  modal(`<div class="box-h"><h2 class="t-title">Your notes</h2><button class="icon-btn close" data-act="close" aria-label="Close">${ic('x')}</button></div>
-   <p class="help" style="margin:0 0 12px">Import lecture notes or modules as PDF, .txt or .md. They stay on this device. When you ask a question, the passages most related to it are sent along, and the tutor uses them first.</p>
-   ${docs.length?`<div class="group" style="margin-bottom:12px">${docs.map(d=>`<div class="row"><span class="main-t"><span class="t">${esc(d.name)}</span><span class="s">${d.pages} page${d.pages>1?'s':''}, ${d.chunks} passages</span></span><button class="icon-btn" data-act="notedel" data-id="${d.id}" aria-label="Remove ${esc(d.name)}">${ic('x',16)}</button></div>`).join('')}</div>`:''}
-   <label class="btn btn-primary btn-block filebtn">Import files<input type="file" id="notefile" accept=".pdf,.txt,.md,application/pdf,text/plain" multiple></label>
-   <p class="help" id="notestat" role="status" style="margin:10px 0 0">${esc(msg)}</p>`)}
 document.addEventListener('change',e=>{if(e.target.id==='notefile'&&e.target.files.length)importNotes([...e.target.files])});
 
 // ---------- model routes ----------
@@ -90,13 +84,14 @@ async function provFetch(c,system,messages,max,signal){const r=provReq(c,system,
   try{res=await fetch(r.url,{method:'POST',signal,headers:r.headers,body:JSON.stringify(r.body)})}
   catch(e){if(e&&e.name==='AbortError')throw e;throw aiE(c.prov==='custom'?`Couldn’t reach ${hostOf(r.url)}. Check the base URL and your connection. The server also has to allow requests from web pages (CORS).`:`Couldn’t reach ${PROV[c.prov].n}. Check your connection and try again.`,'net')}
   let j=null;try{j=await res.json()}catch(_){}
-  if(!res.ok)throw aiE(scrub(errMsg(c,res.status,j),c.key));
+  if(!res.ok)throw Object.assign(aiE(scrub(errMsg(c,res.status,j),c.key)),{status:res.status});
   return scrub(r.text(j||{}),c.key)}
 async function callAI(system,messages,onText,signal){const sm=await sampleFn();
   if(sm){const last=messages[messages.length-1],opts={onText:({text})=>onText(text),signal,cache:false};if(last.blobs&&last.blobs.length)opts.images=last.blobs;
     const r=await sm([{role:'user',content:system+'\n\n---\n\n'+messages[0].content},...messages.slice(1)].map(m=>({role:m.role,content:m.content})),opts);return r.text}
   const c=aiCfg();if(!c)throw aiE('no_ai','no_ai');
-  const t=await provFetch(c,system,messages,c.prov==='anthropic'?2000:4000,signal);onText(t);return t}
+  // retry transient failures (rate limits, overloaded or unreachable servers) with backoff
+  for(let a=0;;a++){try{const t=await provFetch(c,system,messages,c.prov==='anthropic'?2000:4000,signal);onText(t);return t}catch(e){const st=e.status||0;const transient=([500,502,503,504,529].includes(st)||(st===429&&!/quota|credit|billing|limit reached|per day|daily/i.test(e.message)))&&!/free|data policy|guardrail/i.test(e.message);if(!transient||a>=2||(signal&&signal.aborted))throw e;await new Promise(r=>setTimeout(r,a?4000:1500))}}}
 
 // ---------- attachments: photos, PDFs and text files sent with one question ----------
 const IMG_MAX=1568,TXT_CAP=30000,TXT_TOTAL=60000,MAX_ATT=6;
@@ -146,6 +141,7 @@ const TMODES=[['explain','Explain','Answer clearly and briefly, with short numbe
  ['socratic','Socratic','Do NOT give the answer. Ask one guiding question at a time that leads the student to the next idea. When they answer, say whether it is right, probe any misunderstanding with a follow-up question, and gradually increase difficulty. Only reveal the full solution if they explicitly ask.'],
  ['concept','Big picture','Explain the underlying idea: why it is true, how it connects to other topics in the course, and an intuitive picture or analogy. Use at most a small example; focus on understanding over procedure.'],
  ['exam','Exam','Act like a university professor running an exam. Give ONE exam-style question at a time on the topic (in the format of the student\'s course tests), say how long it should take, and do not reveal the answer. When the student replies, grade it out of the stated marks like a marker, then explain the errors, then offer the next question.'],
+ ['prof','Professor','Teach like a University of Waterloo professor giving a lecture at the level of this course: precise definitions first, then theorems with the exact hypotheses, a short proof or derivation, and one worked example in the notation the course uses. Be rigorous about edge cases and quantifiers. Point out which parts are typically examined.'],
  ['challenge','Challenge','Give hard problems that combine several concepts or put the idea in an unfamiliar setting. One problem at a time, no answer until the student attempts it. Then grade and explain.']];
 const ALT=['a different angle: describe a picture or diagram in words','a fully worked numerical example with small numbers','an intuitive analogy from everyday life','a clean algebraic derivation','first principles, building up from the definitions','a real-world application'];
 const tmode=()=>TMODES.find(m=>m[0]===(TUT.tmode||'explain'))||TMODES[0];

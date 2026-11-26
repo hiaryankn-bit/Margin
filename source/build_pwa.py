@@ -1,7 +1,7 @@
 import re,time,os,json,shutil
 BASE=os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE)
-files=['core0','core1','q8','m135','m137','chem','phys','proofs','variety','physx','examfmt','figs','lx135','lx137','lxchem','lxphys','tutor','engine','tools','app4']
+files=['core0','core1','q8','m135','m137','chem','phys','proofs','variety','physx','examfmt','figs','lx135','lx137','lxchem','lxphys','tutor','engine','tools','mathx','ws','sci','lib','docs','starmap','app4']
 sh=open('shell4.html').read()
 V=time.strftime('%Y%m%d%H%M')
 G=[('Regular',400),('Medium',500),('SemiBold',600),('Bold',700)]

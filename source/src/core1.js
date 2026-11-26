@@ -52,7 +52,8 @@ function errq(title,lines,bad,expl,hint){
 // Multi-part problem: shared stem, a sequence of parts
 function multi(stem,parts){return{multi:parts.map((p,i)=>({...p,prompt:`<div class="stem">${stem}</div><div class="part">Part ${'abcdefg'[i]})</div>${p.prompt}`,partOf:[i+1,parts.length]}))}}
 // Bank: items {q,a,w:[...],e,h} | {q,t,e} | {err:[lines],bad,q,e}; avoids recent repeats
-function bank(items){const recent=[];return()=>{let i,g=0;do{i=Math.floor(Math.random()*items.length)}while(recent.includes(i)&&g++<20);recent.push(i);if(recent.length>Math.min(4,items.length-1))recent.shift();
+var SEEDED=false;
+function bank(items){const recent=[];return()=>{let i,g=0;do{i=Math.floor(Math.random()*items.length)}while(!SEEDED&&recent.includes(i)&&g++<20);if(!SEEDED)recent.push(i);if(recent.length>Math.min(4,items.length-1))recent.shift();
   const it=items[i];if(typeof it==='function')return it();
   if(it.err)return errq(it.q||'',it.err,it.bad,it.e,it.h);
   if('t' in it)return tf(it.q,it.t,it.e,it.h);

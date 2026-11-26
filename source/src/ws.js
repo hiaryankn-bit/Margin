@@ -1,0 +1,96 @@
+// =====================================================================
+// Workspace: step-checked solving, calculator, LaTeX, graphing, handwriting
+// =====================================================================
+const WS={tab:'steps',view:null,focus:0,drag:null,read:null,pen:'pen'};
+function wsState(){S.ws=S.ws||{};const w=S.ws;w.lines=w.lines&&w.lines.length?w.lines:[''];w.fns=w.fns&&w.fns.length?w.fns:['x^2 - 2'];if(w.deg==null)w.deg=false;if(w.dfn==null)w.dfn=false;return w}
+const WS_EX=[['3x ≡ 6 (mod 9)','x ≡ 2 (mod 3)'],['x^2 - 5x + 6 = 0','(x - 2)(x - 3) = 0','x = 2'],['d/dx x^2 sin x','2x sin x + x^2 cos x'],['\\frac{x^2-1}{x-1}','x + 1']];
+const WS_KEYS=[['^','^'],['√','sqrt('],['π','pi'],['≡','≡'],['mod','(mod )'],['÷','/'],['(',')'],['θ','theta'],['d/dx','d/dx ']];
+function wsOpen(tab){wsState();WS.tab=tab||WS.tab||'steps';MX_DEG=S.ws.deg;wsRender()}
+function wsRender(){const w=wsState();
+ focusView(`<div class="qtop"><div class="qtop-in"><button class="icon-btn" data-act="home" aria-label="Close">${ic('x')}</button><div class="seg ws-seg">${[['steps','Solve'],['graph','Graph'],['draw','Handwrite']].map(([k,l])=>`<button aria-pressed="${WS.tab===k}" data-act="wstab" data-id="${k}">${l}</button>`).join('')}</div><button class="btn btn-ghost btn-sm" data-act="wsdeg" aria-label="Angle unit">${w.deg?'DEG':'RAD'}</button></div></div>
+ <div class="read ws">${WS.tab==='steps'?wsStepsHtml():WS.tab==='graph'?wsGraphHtml():wsDrawHtml()}</div>`);
+ if(WS.tab==='steps')wsAllPreview();if(WS.tab==='graph')wsPlot();if(WS.tab==='draw')wsCanvasInit()}
+
+// ---------- Solve ----------
+function wsStepsHtml(){const w=S.ws;return`<h1 class="t-title" style="margin-top:8px">Workspace</h1>
+ <p class="t-sub">One step per line. Margin checks each step against the one before it with exact arithmetic and numeric testing, so you see where reasoning breaks, not just whether the answer is right. Type math like <code>x^2 + 3x</code>, <code>sqrt(x)</code>, <code>3x ≡ 6 (mod 9)</code>, <code>d/dx sin x</code>, or LaTeX.</p>
+ <div class="ws-keys" role="toolbar" aria-label="Insert symbol">${WS_KEYS.map(([l,v])=>`<button class="chip" data-act="wskey" data-id="${esc(v)}">${l}</button>`).join('')}</div>
+ <div class="ws-lines" id="wslines">${w.lines.map((s,i)=>`<div class="ws-line"><span class="ws-n num">${i+1}</span><div class="ws-in"><input class="textin" id="wsl${i}" data-i="${i}" value="${esc(s)}" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Step ${i+1}" placeholder="${i?'Next step':'Start here'}"><div class="ws-pv" id="wsp${i}" aria-live="polite"></div></div><button class="icon-btn" data-act="wsdel" data-id="${i}" aria-label="Delete step ${i+1}">${ic('x',16)}</button></div><div class="ws-chk" id="wsc${i}"></div>`).join('')}</div>
+ <div id="wsverdict" aria-live="polite"></div>
+ <div class="ws-acts"><button class="btn btn-primary" data-act="wsadd">${ic('chev',16)} Add step</button><button class="btn btn-secondary" data-act="wsdiff">d/dx of last step</button><button class="btn btn-secondary" data-act="wstex">Copy LaTeX</button><button class="btn btn-secondary" data-act="wsask">${ic('ask',16)} Ask the tutor</button><button class="btn btn-ghost" data-act="wsclear">Clear</button></div>
+ <div class="sec"><div class="sec-h"><h2 class="t-sec">Try an example</h2></div><div class="ws-ex">${WS_EX.map((e,i)=>`<button class="chip" data-act="wsex" data-id="${i}">${esc(e[0])}</button>`).join('')}</div></div>
+ <p class="t-sub" style="font-size:12px;margin-top:16px">How checking works: expressions are compared at 40 random values, equations by their solutions for the variable between −10 and 10, congruences exactly over every residue. A tick means no counterexample was found, which is very strong evidence but not a formal proof. Inequalities aren't checked yet.</p>`}
+function wsParse(i){const s=S.ws.lines[i];if(!s||!s.trim())return{l:null};try{return{l:mxLine(s)}}catch(e){return{err:e.message||'Can’t read this line'}}}
+function wsPreview(i){const pv=$('#wsp'+i);if(!pv)return;const r=wsParse(i);if(r.err){pv.innerHTML=`<span class="xerr" style="margin:0">${esc(r.err)}</span>`;return r}if(!r.l){pv.innerHTML='';return r}
+ let val='';if(r.l.kind==='expr'&&!r.l.vars.size&&!r.l.isD){const v=mxEval(r.l.E,{});val=` <span class="ws-val num">= ${mxFmt(v)}</span>`}
+ if(r.l.isD)val=` <span class="ws-val">= ${mxHtml(r.l.E)}</span>`;pv.innerHTML=`<span class="mx">${mxLineHtml(r.l)}</span>${val}`;return r}
+function wsAllPreview(){const n=S.ws.lines.length;const P=[];for(let i=0;i<n;i++)P.push(wsPreview(i));const ck=[];
+ for(let i=0;i<n;i++){const box=$('#wsc'+i);if(!box)continue;box.innerHTML='';if(i===0)continue;let j=i-1;while(j>=0&&!(P[j]&&P[j].l))j--;if(!(P[i]&&P[i].l)||j<0)continue;
+  let c=null;try{c=mxCheck(P[j].l,P[i].l)}catch(e){c={s:'unk',msg:'Couldn’t check this step'}}ck[i]=c;if(!c||!c.msg)continue;
+  box.innerHTML=`<div class="ws-c ${c.s}">${ic(c.s==='ok'?'check':c.s==='bad'?'x':'hint',14)}<span>${esc(c.msg)}${c.hint?`<br><b>Hint:</b> ${esc(c.hint)}`:''}</span></div>`}
+ // a right final answer reached through a wrong step
+ const v=$('#wsverdict');if(!v)return;v.innerHTML='';const idx=P.map((p,i)=>p&&p.l?i:-1).filter(i=>i>=0);if(idx.length<3)return;
+ const bad=ck.findIndex(c=>c&&c.s==='bad');if(bad<0)return;let fin=null;try{fin=mxCheck(P[idx[0]].l,P[idx[idx.length-1]].l)}catch(e){}
+ if(fin&&fin.s==='ok')v.innerHTML=`<div class="tip warn">${ic('hint',17)}<div><div class="lbl">Right answer, invalid reasoning</div>Your last line agrees with the first, but step ${bad+1} doesn’t follow from step ${bad}. On a test that usually loses marks: fix step ${bad+1} so every step is valid.</div></div>`;
+ else if(fin&&fin.s==='bad')v.innerHTML=`<div class="tip">${ic('hint',17)}<div><div class="lbl">First error at step ${bad+1}</div>Everything before it is consistent. Fix that step and the ones after it.</div></div>`}
+let WS_T=null;
+document.addEventListener('input',e=>{const t=e.target;if(t.id&&t.id.startsWith('wsl')){const i=+t.dataset.i;S.ws.lines[i]=t.value;WS.focus=i;clearTimeout(WS_T);WS_T=setTimeout(()=>{wsAllPreview();save()},180)}
+ if(t.id&&t.id.startsWith('wsf')){S.ws.fns[+t.dataset.i]=t.value;clearTimeout(WS_T);WS_T=setTimeout(()=>{wsPlot();save()},200)}});
+document.addEventListener('focusin',e=>{const t=e.target;if(t.id&&t.id.startsWith('wsl'))WS.focus=+t.dataset.i;if(t.id&&t.id.startsWith('wsf'))WS.ffocus=+t.dataset.i});
+document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t.id&&t.id.startsWith('wsl')){e.preventDefault();wsAdd(+t.dataset.i+1)}});
+function wsAdd(at){const w=S.ws;at=at==null?w.lines.length:at;w.lines.splice(at,0,'');save();wsRender();const el=$('#wsl'+at);if(el)el.focus()}
+function wsKey(v){const id=WS.tab==='graph'?'#wsf'+(WS.ffocus||0):'#wsl'+(WS.focus||0);const el=$(id);if(!el)return;const a=el.selectionStart??el.value.length,b=el.selectionEnd??a;el.value=el.value.slice(0,a)+v+el.value.slice(b);let pos=a+v.length;if(v==='(mod )')pos=a+5;el.focus();el.setSelectionRange(pos,pos);el.dispatchEvent(new Event('input',{bubbles:true}))}
+function wsDiff(){const w=S.ws;const last=[...w.lines].reverse().find(s=>s&&s.trim());if(!last)return toast('Write an expression first');try{const l=mxLine(last);const E=l.kind==='expr'?l.E:l.kind==='eq'&&l.L.k==='v'?l.R:null;if(!E)return toast('d/dx works on an expression or y = …');w.lines.push('d/dx '+mxPlain(l.isD?l.E:E));save();wsRender()}catch(e){toast(e.message||'Can’t differentiate that')}}
+function mxPlain(n){return mxTex(n).replace(/\\left|\\right/g,'').replace(/\\cdot/g,'*').replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g,'($1)/($2)').replace(/\\(sin|cos|tan|ln|log|sec|csc|cot|exp|pi|sqrt)/g,'$1').replace(/\{/g,'(').replace(/\}/g,')')}
+async function wsTex(){const ls=S.ws.lines.filter(s=>s&&s.trim()).map(s=>{try{return mxLineTex(mxLine(s))}catch(e){return null}}).filter(Boolean);if(!ls.length)return toast('Nothing to copy yet');const t=ls.length>1?`\\begin{aligned}\n${ls.map(l=>'& '+l).join(' \\\\\n')}\n\\end{aligned}`:ls[0];
+ try{await navigator.clipboard.writeText(t);toast('LaTeX copied','check')}catch(e){modal(`<div class="box-h"><h2 class="t-title">LaTeX</h2><button class="icon-btn close" data-act="close" aria-label="Close">${ic('x')}</button></div><textarea class="textin" style="height:160px;font-family:ui-monospace,Menlo,monospace" readonly>${esc(t)}</textarea>`)}}
+function wsAsk(){const w=S.ws;const P=w.lines.map((s,i)=>({s,i})).filter(o=>o.s&&o.s.trim());if(!P.length)return toast('Write your steps first');
+ const rows=P.map(o=>{const c=$('#wsc'+o.i);const st=c&&c.textContent.trim();return`Step ${o.i+1}: ${o.s}${st?`   [Margin's check: ${st}]`:''}`}).join('\n');
+ TUT.ctx=null;TUT.msgs=[];go('ask');setTimeout(()=>askSend(`Here is my working, one step per line, with Margin's automatic check of each step. Tell me which steps are valid, and for the first invalid step explain exactly what rule I broke and give me a hint (not the full answer) to fix it.\n\n${rows}`,'Check my workspace steps'),60)}
+
+// ---------- Graph ----------
+const WS_COL=['var(--c-m137)','var(--c-phys)','var(--c-m135)','var(--c-chem)'];
+function wsGraphHtml(){const w=S.ws;return`<h1 class="t-title" style="margin-top:8px">Graph</h1>
+ <div class="ws-keys" role="toolbar" aria-label="Insert symbol">${WS_KEYS.filter(k=>!['≡','mod','d/dx'].includes(k[0])).map(([l,v])=>`<button class="chip" data-act="wskey" data-id="${esc(v)}">${l}</button>`).join('')}</div>
+ ${w.fns.map((f,i)=>`<div class="ws-line"><span class="ws-sw" style="background:${WS_COL[i]}"></span><div class="ws-in"><input class="textin" id="wsf${i}" data-i="${i}" value="${esc(f)}" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Function ${i+1} of x" placeholder="a function of x"><div class="ws-pv" id="wsfp${i}"></div></div><button class="icon-btn" data-act="wsfdel" data-id="${i}" aria-label="Remove function ${i+1}">${ic('x',16)}</button></div>`).join('')}
+ <div class="ws-acts">${w.fns.length<4?`<button class="btn btn-secondary btn-sm" data-act="wsfadd">Add function</button>`:''}<button class="btn btn-${w.dfn?'primary':'secondary'} btn-sm" data-act="wsdfn" aria-pressed="${w.dfn}">Show f′ of the first</button></div>
+ <div class="ws-plot" id="wsplot"></div>
+ <div class="ws-acts"><button class="btn btn-secondary btn-sm" data-act="wszoom" data-id="in" aria-label="Zoom in">+</button><button class="btn btn-secondary btn-sm" data-act="wszoom" data-id="out" aria-label="Zoom out">−</button><button class="btn btn-ghost btn-sm" data-act="wszoom" data-id="reset">Reset view</button></div>
+ <p class="t-sub" style="font-size:12px">Drag to move, tap to read values. Roots and turning points of the first function are marked and listed below.</p><div id="wsinfo"></div>`}
+function wsFns(){const w=S.ws;const out=[];w.fns.forEach((f,i)=>{const pv=$('#wsfp'+i);if(!f.trim()){if(pv)pv.innerHTML='';return}try{let l=mxLine(f.includes('=')||/^d\/d/.test(f)?f:'f(x)='+f);if(l.label==='f(x)'&&!f.includes('='))l={kind:'expr',E:l.E,vars:l.vars};const fn=mxPlotFn(l.kind==='expr'&&!l.label?{...l,label:'f'}:l);if(!fn)throw new Error('Use x as the only variable');if(pv)pv.innerHTML=`<span class="mx"><i>y</i> = ${mxHtml(l.kind==='expr'?l.E:l.R)}</span>`;out.push({i,fn,E:l.kind==='expr'?l.E:l.R})}catch(e){if(pv)pv.innerHTML=`<span class="xerr" style="margin:0">${esc(e.message)}</span>`}});
+ if(w.dfn&&out[0]){try{const D=mxDiff(out[0].E,'x');out.push({i:'d',fn:x=>mxEval(D,{x}),E:D,d:true})}catch(e){}}return out}
+function wsPlot(){const box=$('#wsplot');if(!box)return;const fs=wsFns();const V=WS.view||(WS.view={x0:-10,x1:10});const W=340,H=260,M=4;
+ const xs=[...Array(301)].map((_,i)=>V.x0+(V.x1-V.x0)*i/300);let ys=[];fs.forEach(f=>xs.forEach(x=>{const y=f.fn(x);if(isFinite(y))ys.push(y)}));ys.sort((a,b)=>a-b);
+ let R0=[],TP=[];if(fs[0]&&!fs[0].d){R0=mxRoots(fs[0].fn,V.x0,V.x1).slice(0,8);try{const D=mxDiff(fs[0].E,'x');TP=mxRoots(x=>mxEval(D,{x}),V.x0,V.x1).filter(x=>isFinite(fs[0].fn(x))).slice(0,8)}catch(e){}}
+ let y0,y1;if(V.y0!=null){y0=V.y0;y1=V.y1}else if(ys.length){y0=ys[Math.floor(ys.length*.03)];y1=ys[Math.ceil(ys.length*.97)-1];if(y1-y0<1e-9){y0-=1;y1+=1}const pad=(y1-y0)*.12;y0-=pad;y1+=pad;if(y0>0&&y0<(y1-y0)*.5)y0=-(y1-y0)*.06;if(y1<0&&-y1<(y1-y0)*.5)y1=(y1-y0)*.06;
+  // if that range is very tall, zoom to the interesting part (axis, roots, turning points) at a natural aspect ratio
+  const I=[0,...TP.map(x=>fs[0].fn(x))];const lo=Math.min(...I),hi=Math.max(...I);const span=Math.max((V.x1-V.x0)*H/W,(hi-lo)*1.5);if(y1-y0>span*1.5){const c=(lo+hi)/2;y0=c-span/2;y1=c+span/2}}else{y0=-10;y1=10}
+ V.cy0=y0;V.cy1=y1;const X=x=>M+(x-V.x0)/(V.x1-V.x0)*(W-2*M),Y=y=>H-M-(y-y0)/(y1-y0)*(H-2*M);
+ const step=r=>{const raw=r/8,p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p};const sx=step(V.x1-V.x0),sy=step(y1-y0);
+ let g='';for(let x=Math.ceil(V.x0/sx)*sx;x<=V.x1;x+=sx){g+=`<line x1="${X(x)}" x2="${X(x)}" y1="${M}" y2="${H-M}" class="gl"/>`;if(Math.abs(x)>sx/2)g+=`<text x="${X(x)}" y="${Math.min(H-8,Math.max(14,Y(0)+14))}" class="gt" text-anchor="middle">${+x.toFixed(6)}</text>`}
+ for(let y=Math.ceil(y0/sy)*sy;y<=y1;y+=sy){g+=`<line y1="${Y(y)}" y2="${Y(y)}" x1="${M}" x2="${W-M}" class="gl"/>`;if(Math.abs(y)>sy/2)g+=`<text x="${Math.min(W-6,Math.max(6,X(0)+4))}" y="${Y(y)-3}" class="gt">${+y.toFixed(6)}</text>`}
+ if(V.x0<0&&V.x1>0)g+=`<line x1="${X(0)}" x2="${X(0)}" y1="${M}" y2="${H-M}" class="ax"/>`;if(y0<0&&y1>0)g+=`<line y1="${Y(0)}" y2="${Y(0)}" x1="${M}" x2="${W-M}" class="ax"/>`;
+ const N2=600;let paths='';fs.forEach(f=>{let d='',pen=false,py=null;for(let i=0;i<=N2;i++){const x=V.x0+(V.x1-V.x0)*i/N2,y=f.fn(x);if(!isFinite(y)||y<y0-(y1-y0)*3||y>y1+(y1-y0)*3||(py!=null&&Math.abs(y-py)>(y1-y0)*1.5)){pen=false;py=isFinite(y)?y:null;continue}d+=(pen?'L':'M')+X(x).toFixed(1)+' '+Y(y).toFixed(1);pen=true;py=y}
+  paths+=`<path d="${d}" fill="none" stroke="${f.d?'var(--ink-2)':WS_COL[f.i]}" stroke-width="2" ${f.d?'stroke-dasharray="5 4"':''} vector-effect="non-scaling-stroke"/>`});
+ let marks='',info='';if(fs[0]&&!fs[0].d){const f=fs[0].fn;const r=R0,tp=TP;
+  r.forEach(x=>marks+=`<circle cx="${X(x)}" cy="${Y(0)}" r="4" class="mk"/>`);tp.forEach(x=>marks+=`<circle cx="${X(x)}" cy="${Y(f(x))}" r="4" class="mk2"/>`);
+  info=`<div class="group"><div class="row"><span class="main-t"><span class="t">Roots in view</span><span class="s num">${r.length?r.map(x=>`x ≈ ${mxFmt(+x.toFixed(5))}`).join(', '):'None'}</span></span></div><div class="row"><span class="main-t"><span class="t">Turning points (f′ = 0)</span><span class="s num">${tp.length?tp.map(x=>`(${mxFmt(+x.toFixed(4))}, ${mxFmt(+f(x).toFixed(4))})`).join(', '):'None'}</span></span></div>${(()=>{try{return`<div class="row"><span class="main-t"><span class="t">f′(x)</span><span class="s mx">${mxHtml(mxDiff(fs[0].E,'x'))}</span></span></div>`}catch(e){return''}})()}</div>`}
+ let rd='';if(WS.read!=null&&WS.read>=V.x0&&WS.read<=V.x1){const x=WS.read;rd=`<line x1="${X(x)}" x2="${X(x)}" y1="${M}" y2="${H-M}" class="rd"/>`;fs.forEach(f=>{const y=f.fn(x);if(isFinite(y)&&y>=y0&&y<=y1)rd+=`<circle cx="${X(x)}" cy="${Y(y)}" r="4" fill="${f.d?'var(--ink-2)':WS_COL[f.i]}"/>`});info=`<p class="ws-read num">x = ${mxFmt(+x.toFixed(4))}: ${fs.map(f=>`${f.d?'f′':'y'+(f.i+1)} = ${mxFmt(+f.fn(x).toFixed(6))}`).join(', ')}</p>`+info}
+ box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="plot" role="img" aria-label="Graph of ${fs.length} function${fs.length===1?'':'s'}">${g}${paths}${marks}${rd}</svg>`;const inf=$('#wsinfo');if(inf)inf.innerHTML=info;
+ const sv=box.querySelector('svg');sv.onpointerdown=e=>{sv.setPointerCapture(e.pointerId);const r=sv.getBoundingClientRect();WS.drag={x:e.clientX,y:e.clientY,v:{...V},moved:false,r}};
+ sv.onpointermove=e=>{const d=WS.drag;if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;if(Math.abs(dx)+Math.abs(dy)>4)d.moved=true;if(!d.moved)return;const kx=(d.v.x1-d.v.x0)/d.r.width,ky=(d.v.cy1-d.v.cy0)/d.r.height;V.x0=d.v.x0-dx*kx;V.x1=d.v.x1-dx*kx;V.y0=d.v.cy0+dy*ky;V.y1=d.v.cy1+dy*ky;wsPlot()};
+ sv.onpointerup=e=>{const d=WS.drag;WS.drag=null;if(d&&!d.moved){WS.read=V.x0+(e.clientX-d.r.left)/d.r.width*(V.x1-V.x0);wsPlot()}}}
+function wsZoom(z){const V=WS.view||(WS.view={x0:-10,x1:10});if(z==='reset'){WS.view={x0:-10,x1:10};WS.read=null;return wsPlot()}const k=z==='in'?.5:2,cx=(V.x0+V.x1)/2,hw=(V.x1-V.x0)/2*k;V.x0=cx-hw;V.x1=cx+hw;if(V.y0!=null){const cy=(V.y0+V.y1)/2,hh=(V.y1-V.y0)/2*k;V.y0=cy-hh;V.y1=cy+hh}wsPlot()}
+
+// ---------- Handwrite ----------
+function wsDrawHtml(){return`<h1 class="t-title" style="margin-top:8px">Handwrite</h1><p class="t-sub">Write your solution with a finger or stylus. The tutor reads it, turns it into typed math line by line, and points to the first step where the reasoning goes wrong. Needs the AI tutor to be connected.</p>
+ <div class="ws-draw"><canvas id="wscv" aria-label="Handwriting area"></canvas></div>
+ <div class="ws-acts"><button class="btn btn-${WS.pen==='pen'?'primary':'secondary'} btn-sm" data-act="wspen" data-id="pen" aria-pressed="${WS.pen==='pen'}">Pen</button><button class="btn btn-${WS.pen==='erase'?'primary':'secondary'} btn-sm" data-act="wspen" data-id="erase" aria-pressed="${WS.pen==='erase'}">Eraser</button><button class="btn btn-ghost btn-sm" data-act="wscvclear">Clear</button></div>
+ <button class="btn btn-primary btn-lg btn-block" data-act="wscvsend" style="margin-top:12px">${ic('ask',18)} Check my handwriting</button>`}
+function wsCanvasInit(){const c=$('#wscv');if(!c)return;const r=c.getBoundingClientRect(),dpr=Math.min(3,devicePixelRatio||1);c.width=r.width*dpr;c.height=r.height*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.lineCap=x.lineJoin='round';x.fillStyle='#fff';x.fillRect(0,0,r.width,r.height);
+ if(WS.ink){const im=new Image();im.onload=()=>x.drawImage(im,0,0,r.width,r.height);im.src=WS.ink}
+ let last=null;c.onpointerdown=e=>{c.setPointerCapture(e.pointerId);last=[e.offsetX,e.offsetY]};c.onpointermove=e=>{if(!last)return;x.strokeStyle=WS.pen==='erase'?'#fff':'#111';x.lineWidth=WS.pen==='erase'?22:(e.pressure&&e.pointerType==='pen'?1.5+e.pressure*2.5:2.6);x.beginPath();x.moveTo(...last);x.lineTo(e.offsetX,e.offsetY);x.stroke();last=[e.offsetX,e.offsetY]};
+ c.onpointerup=c.onpointercancel=()=>{if(last){last=null;WS.ink=c.toDataURL('image/png')}}}
+async function wsCanvasSend(){const c=$('#wscv');if(!c||!WS.ink)return toast('Write something first');const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.9));const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(',')[1]);fr.readAsDataURL(blob)});
+ TUT.ctx=null;TUT.msgs=[];TUT.atts=[{id:'hw'+Date.now(),kind:'image',info:'Handwriting',name:'handwriting.jpg',mime:'image/jpeg',b64,blob,thumb:'data:image/jpeg;base64,'+b64}];go('ask');renderAtts&&renderAtts();
+ setTimeout(()=>askSend('This photo is my handwritten solution. First transcribe it line by line as typed math. Then check each step. For the first step where my reasoning goes wrong, say exactly what rule was broken and give me a hint to fix it, not the full answer. If the final answer is right but a step is invalid, say so clearly.','Check my handwriting'),80)}

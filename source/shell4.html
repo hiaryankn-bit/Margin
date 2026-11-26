@@ -231,6 +231,22 @@ button.row:hover,a.row:hover{background:var(--surface-2)}
 .guide .gl{margin:6px 0 0;padding-left:20px;display:grid;gap:6px}.guide .rs-h .gm{margin-left:auto;color:var(--muted);font-size:14px}
 .guide .gex{margin:10px 0;padding:10px 12px;border-radius:var(--r);background:var(--surface-2)}.guide .gex summary{cursor:pointer;font-weight:500}
 .guide .gbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.plan .prow .s{white-space:normal;line-height:1.45}.plan .prow .pmeta{color:var(--muted);font-size:12px;margin-top:2px}.plan .prow.done .t{text-decoration:line-through;color:var(--muted)}.plan .pnote{font-size:12px;margin-top:8px}
+.fbq{margin-top:12px;display:grid;gap:6px}.fbq .chips{display:flex;flex-wrap:wrap;gap:6px}.chip{height:32px;padding:0 12px;border-radius:16px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}.chip.on{background:var(--ink);color:var(--surface)}
+@media (hover:none) and (pointer:coarse){.chip{height:40px}}
+.mbar{position:relative;display:block;height:6px;border-radius:3px;background:var(--surface-2);margin-top:8px}.mbar .rng{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--course,var(--ink)) 30%,transparent);border-radius:3px}.mbar .pt{position:absolute;top:-3px;width:3px;height:12px;margin-left:-1px;background:var(--course,var(--ink));border-radius:2px}
+.tstat{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px}.tstat .big{font-size:28px;font-weight:600;margin-top:4px}.tstat .s{font-size:12px;color:var(--muted);line-height:1.4}
+.tobs{margin-top:12px;font-size:14px;line-height:1.5;color:var(--ink-2)}.tlinks{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.tlinks .t-label{width:100%}
+.tchip{height:32px;padding:0 10px;border-radius:8px;font-size:13px;background:var(--surface-2);box-shadow:inset 3px 0 0 var(--muted)}.tchip small{color:var(--muted);margin-left:4px}
+.st-mastered{--st:var(--good)}.st-developing{--st:var(--gold,#b7791f)}.st-weak{--st:var(--bad)}.st-new{--st:var(--muted)}.tchip[class*=st-]{box-shadow:inset 3px 0 0 var(--st)}
+.mapsum{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:16px 0 8px;flex-wrap:wrap}.mapsum .num{font-size:28px;font-weight:600;margin-right:8px}.mapsum .lg{display:flex;gap:10px;flex-wrap:wrap;font-size:12px}.mapsum .lg span{display:inline-flex;align-items:center;gap:5px}.mapsum .lg span::before{content:'';width:9px;height:9px;border-radius:2px;background:var(--st)}
+.kmap{overflow:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r);background:var(--surface-2);margin:8px 0;max-height:70vh}.kmap svg{display:block}
+.kmap .ch{font-size:12px;font-weight:600;fill:var(--muted)}.kmap .ed{fill:none;stroke:var(--line-strong,#c9c9c4);stroke-width:1.3}.kmap .ed.bad{stroke:var(--bad);stroke-dasharray:4 3}.kmap .ah{fill:var(--line-strong,#c9c9c4)}
+.kmap .nd{cursor:pointer}.kmap .nd rect:first-child{fill:var(--surface);stroke:var(--st);stroke-width:1.5}.kmap .nd.st-new rect:first-child{stroke:var(--line)}.kmap .nd.blk rect:first-child{stroke-dasharray:5 3;stroke:var(--bad)}.kmap .nd .fill{fill:var(--st)}.kmap .nd:focus{outline:none}.kmap .nd:focus rect:first-child{stroke-width:3}
+.kmap .tn{font-size:13px;font-weight:500;fill:var(--ink)}.kmap .ts{font-size:11px;fill:var(--muted)}
+.ttab{display:grid;border-top:1px solid var(--line)}.ttab .tr{display:grid;grid-template-columns:1fr 52px 78px 52px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);text-align:left;font-size:14px;width:100%}.ttab .th{font-size:11px;color:var(--muted);text-transform:none;padding:6px 0}.ttab .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ttab small{color:var(--muted);font-size:11px}
+.tnote{padding:10px 12px;border-radius:var(--r);background:var(--surface-2)}
+.row.ins .main-t .t{white-space:normal}
 .asktabs{margin:4px 0 12px}.asktabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08),inset 0 0 0 1px var(--line)}
 .gform{display:grid;gap:8px;margin-top:8px}.gform .lbl{font-size:13px;font-weight:600;color:var(--ink-2);margin-top:6px}.gform .optl{font-weight:400;color:var(--muted)}
 .gform textarea{width:100%;padding:10px 12px;border-radius:var(--r);border:0;background:var(--surface-2);font:inherit;font-size:15px;resize:vertical;outline:none}
